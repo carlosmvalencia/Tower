@@ -1,0 +1,31 @@
+{
+  "name": "tower",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Tower — WMS de All-logistics",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:api": "npm --workspace @tower/api run start:dev",
+    "dev:web": "npm --workspace @tower/web run dev",
+    "build:api": "npm --workspace @tower/api run build",
+    "build:web": "npm --workspace @tower/web run build",
+    "db:up": "docker compose -f infra/docker-compose.yml up -d",
+    "db:down": "docker compose -f infra/docker-compose.yml down",
+    "db:migrate": "npm --workspace @tower/api run prisma:migrate",
+    "db:seed": "npm --workspace @tower/api run prisma:seed"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "allowScripts": {
+    "@nestjs/core@10.4.22": true,
+    "@prisma/client@5.22.0": true,
+    "@prisma/engines@5.22.0": true,
+    "bcrypt@5.1.1": true,
+    "esbuild@0.21.5": true,
+    "prisma@5.22.0": true
+  }
+}

@@ -1,0 +1,45 @@
+# Dependencias
+node_modules/
+
+# Builds
+dist/
+build/
+out/
+
+# Entornos (incluye .env.production — nunca subir claves al repo)
+.env
+.env.local
+.env.*.local
+.env.production
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Coverage / build info
+coverage/
+*.tsbuildinfo
+
+# Docker volumes
+infra/data/
+
+# Uploads locales (fotos de soporte en dev)
+apps/api/uploads/
+
+# Firebase
+.firebase/
+firebase-debug.log
+
+# Archivos operativos con datos reales (NO publicar)
+docs/*.xlsx
+docs/*.csv

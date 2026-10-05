@@ -1,0 +1,100 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// Auth y usuarios
+// ============================================================
+
+enum UserRole {
+  ADMIN
+  SUPERVISOR
+  OPERARIO
+}
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String
+  fullName     String
+  role         UserRole  @default(OPERARIO)
+  isActive     Boolean   @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  refreshTokens RefreshToken[]
+
+  @@index([role])
+}
+
+model RefreshToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// ============================================================
+// Maestros: clientes del 3PL y sus productos
+// ============================================================
+
+// Ambiente de almacenamiento. Mismo concepto que CONG/REF/SECO del rutero de Sandor.
+enum Environment {
+  FROZEN
+  REFRIGERATED
+  DRY
+}
+
+model Customer {
+  id          String  @id @default(cuid())
+  code        String  @unique // CL-0001
+  name        String
+  taxId       String?
+  contactName String?
+  phone       String?
+  email       String?
+  notes       String?
+  isActive    Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  products Product[]
+}
+
+// Producto DE UN CLIENTE: en un 3PL el mismo "pollo congelado" de dos
+// clientes son dos productos distintos (dueños distintos del inventario).
+model Product {
+  id            String      @id @default(cuid())
+  customerId    String
+  code          String // código del cliente o interno; único por cliente
+  name          String
+  barcode       String? // EAN/UPC para escaneo con cámara
+  unit          String      @default("UND") // UND, CAJA, KG, ...
+  environment   Environment
+  shelfLifeDays Int? // vida útil típica, para validar vencimientos al recibir
+  notes         String?
+  isActive      Boolean     @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  customer Customer @relation(fields: [customerId], references: [id])
+
+  @@unique([customerId, code])
+  @@index([customerId])
+  @@index([barcode])
+  @@index([environment])
+}

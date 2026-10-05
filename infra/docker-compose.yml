@@ -1,0 +1,19 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: tower-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: tower
+      POSTGRES_PASSWORD: tower_dev
+      POSTGRES_DB: tower
+    # 5433 en el host: Sandor usa 5432, así pueden correr ambos a la vez.
+    ports:
+      - '5433:5432'
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U tower -d tower']
+      interval: 5s
+      timeout: 3s
+      retries: 10

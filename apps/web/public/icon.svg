@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <rect width="64" height="64" rx="14" fill="#0d9488"/>
+  <!-- torre de estibas: tres cajas apiladas -->
+  <rect x="18" y="38" width="28" height="12" rx="2" fill="#ffffff"/>
+  <rect x="21" y="24" width="22" height="12" rx="2" fill="#99f6e4"/>
+  <rect x="24" y="10" width="16" height="12" rx="2" fill="#ccfbf1"/>
+</svg>
