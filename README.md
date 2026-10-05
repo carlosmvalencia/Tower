@@ -19,16 +19,25 @@ y despliegue independientes.
 
 ## Arrancar en local
 
+La base de datos vive en **Cloud SQL** (instancia `sandor-db` del proyecto GCP
+`sandor-prod`, base `tower`). En desarrollo se llega a ella por el
+**Cloud SQL Auth Proxy** en `localhost:5433` — no hay Postgres local.
+
 ```bash
 npm install
-npm run db:up        # Postgres en localhost:5433 (Sandor usa 5432)
-npm run db:migrate   # primera vez: npm run db:migrate -- --name init
-npm run db:seed      # crea el usuario admin
+# 1. Proxy a Cloud SQL (déjalo corriendo; requiere gcloud autenticado)
+C:/Users/carlo/cloud-sql-proxy.exe --gcloud-auth --port 5433 sandor-prod:us-east1:sandor-db
+# 2. En otra terminal:
 npm run dev:api      # API en :3001/api/v1 — Swagger en :3001/docs
 npm run dev:web      # Web en :5174
 ```
 
+Migraciones: `npm run db:migrate` (con el proxy corriendo). Seed: `npm run db:seed`.
 Login sembrado: `admin@all-logistics.co` / `Admin123!` (cambiarla tras el primer login).
+
+> `infra/docker-compose.yml` queda como alternativa de Postgres local (puerto
+> 5433), hoy sin uso: Docker Desktop está dañado en el equipo y la decisión es
+> que todo viva en Google Cloud.
 
 ## Fases
 
