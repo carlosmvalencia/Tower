@@ -1,0 +1,38 @@
+# CI/CD de la API de Tower: push a main → build → push → deploy a Cloud Run.
+# Reusa el repositorio de Artifact Registry "sandor" (imagen tower-api).
+steps:
+  - id: build
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -f
+      - apps/api/Dockerfile
+      - -t
+      - us-east1-docker.pkg.dev/sandor-prod/sandor/tower-api:latest
+      - -t
+      - us-east1-docker.pkg.dev/sandor-prod/sandor/tower-api:$BUILD_ID
+      - .
+
+  # CRÍTICO: push explícito ANTES del deploy. La sección images: del final
+  # empuja después de todos los pasos — demasiado tarde para el deploy.
+  - id: push
+    name: gcr.io/cloud-builders/docker
+    args:
+      - push
+      - --all-tags
+      - us-east1-docker.pkg.dev/sandor-prod/sandor/tower-api
+
+  - id: deploy
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - tower-api
+      - --image=us-east1-docker.pkg.dev/sandor-prod/sandor/tower-api:$BUILD_ID
+      - --region=us-east1
+
+options:
+  machineType: E2_MEDIUM
+  logging: CLOUD_LOGGING_ONLY
+timeout: 1200s
