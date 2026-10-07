@@ -1,0 +1,21 @@
+# Solo build + push — usado una única vez para el primer despliegue,
+# antes de que el servicio tower-api exista. El CI normal usa /cloudbuild.yaml.
+steps:
+  - id: build
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -f
+      - apps/api/Dockerfile
+      - -t
+      - us-east1-docker.pkg.dev/sandor-prod/sandor/tower-api:latest
+      - .
+  - id: push
+    name: gcr.io/cloud-builders/docker
+    args:
+      - push
+      - us-east1-docker.pkg.dev/sandor-prod/sandor/tower-api:latest
+options:
+  machineType: E2_MEDIUM
+  logging: CLOUD_LOGGING_ONLY
+timeout: 1200s
