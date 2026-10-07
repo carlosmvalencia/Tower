@@ -7,6 +7,7 @@ import {
   ENVIRONMENT_LABELS,
   type CustomerOption,
   type Environment,
+  type MeasureType,
   type Paginated,
   type Product,
 } from '../lib/types';
@@ -20,6 +21,7 @@ interface FormValues {
   code: string;
   name: string;
   barcode: string;
+  measure: MeasureType;
   unit: string;
   environment: Environment;
   shelfLifeDays: string;
@@ -32,6 +34,7 @@ const emptyForm: FormValues = {
   code: '',
   name: '',
   barcode: '',
+  measure: 'UND',
   unit: 'UND',
   environment: 'DRY',
   shelfLifeDays: '',
@@ -88,6 +91,7 @@ export function ProductsPage() {
       code: p.code,
       name: p.name,
       barcode: p.barcode ?? '',
+      measure: p.measure ?? 'UND',
       unit: p.unit,
       environment: p.environment,
       shelfLifeDays: p.shelfLifeDays ? String(p.shelfLifeDays) : '',
@@ -105,7 +109,8 @@ export function ProductsPage() {
         code: values.code.trim(),
         name: values.name.trim(),
         barcode: values.barcode.trim() || undefined,
-        unit: values.unit.trim() || 'UND',
+        measure: values.measure,
+        unit: values.measure === 'KG' ? 'KG' : values.unit.trim() || 'UND',
         environment: values.environment,
         shelfLifeDays: values.shelfLifeDays ? Number(values.shelfLifeDays) : undefined,
         notes: values.notes.trim() || undefined,
@@ -206,7 +211,7 @@ export function ProductsPage() {
                 <td className="px-4 py-3">
                   <EnvironmentBadge environment={p.environment} />
                 </td>
-                <td className="px-4 py-3">{p.unit}</td>
+                <td className="px-4 py-3">{p.measure === 'KG' ? 'kg' : p.unit}</td>
                 <td className="px-4 py-3">{p.shelfLifeDays ? `${p.shelfLifeDays} días` : '—'}</td>
                 <td className="px-4 py-3">
                   {p.isActive ? <span className="badge-green">Activo</span> : <span className="badge-gray">Inactivo</span>}
@@ -284,7 +289,14 @@ export function ProductsPage() {
               <input className="input" inputMode="numeric" {...register('barcode')} />
             </div>
             <div>
-              <label className="label">Unidad</label>
+              <label className="label">Manejo *</label>
+              <select className="input" {...register('measure')}>
+                <option value="UND">Por unidades</option>
+                <option value="KG">Por peso (kg)</option>
+              </select>
+            </div>
+            <div>
+              <label className="label">Unidad visible</label>
               <input className="input" placeholder="UND, CAJA, KG…" {...register('unit')} />
             </div>
             <div>

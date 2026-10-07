@@ -57,21 +57,41 @@ enum Environment {
   DRY
 }
 
+// Modelo de servicio que All-logistics le presta al cliente:
+// INVENTORY = le llevamos el inventario completo; CROSS_DOCK = solo control
+// estricto de cajas que entran/salen; BOTH = ambos.
+enum CustomerServiceType {
+  INVENTORY
+  CROSS_DOCK
+  BOTH
+}
+
 model Customer {
-  id          String  @id @default(cuid())
-  code        String  @unique // CL-0001
-  name        String
-  taxId       String?
+  id          String              @id @default(cuid())
+  code        String              @unique // CL-0001
+  name        String // razón social
+  taxId       String? // NIT
+  addressLine String?
   contactName String?
   phone       String?
   email       String?
+  serviceType CustomerServiceType @default(INVENTORY)
   notes       String?
-  isActive    Boolean @default(true)
+  isActive    Boolean             @default(true)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  products Product[]
+  products          Product[]
+  receipts          Receipt[]
+  crossDockReceipts CrossDockReceipt[]
+}
+
+// Cómo se maneja el producto: por peso (kg, cantidades decimales)
+// o por unidades (enteros).
+enum MeasureType {
+  KG
+  UND
 }
 
 // Producto DE UN CLIENTE: en un 3PL el mismo "pollo congelado" de dos
@@ -82,7 +102,8 @@ model Product {
   code          String // código del cliente o interno; único por cliente
   name          String
   barcode       String? // EAN/UPC para escaneo con cámara
-  unit          String      @default("UND") // UND, CAJA, KG, ...
+  measure       MeasureType @default(UND) // KG = por peso, UND = por unidades
+  unit          String      @default("UND") // etiqueta visible: UND, CAJA, KG, ...
   environment   Environment
   shelfLifeDays Int? // vida útil típica, para validar vencimientos al recibir
   notes         String?
@@ -92,9 +113,230 @@ model Product {
   updatedAt DateTime @updatedAt
 
   customer Customer @relation(fields: [customerId], references: [id])
+  lots     Lot[]
+  lines    ReceiptLine[]
+  moves    StockMovement[]
 
   @@unique([customerId, code])
   @@index([customerId])
   @@index([barcode])
   @@index([environment])
+}
+
+// ============================================================
+// Configuración operativa (taras estándar, etc.)
+// ============================================================
+
+model Setting {
+  key       String   @id // ej. tare.canastillaKg, tare.estibaKg
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
+// ============================================================
+// Recepción de inventario (clientes INVENTORY)
+// ============================================================
+
+enum ReceiptStatus {
+  DRAFT // en registro — aún editable
+  CONFIRMED // genera stock y cédulas definitivas
+  CANCELLED
+}
+
+enum PalletStatus {
+  IN_STORAGE
+  DISPATCHED
+}
+
+// Lote: nace al confirmar una recepción. Base del FEFO.
+model Lot {
+  id         String    @id @default(cuid())
+  productId  String
+  code       String
+  expiryDate DateTime?
+  createdAt  DateTime  @default(now())
+
+  product Product         @relation(fields: [productId], references: [id])
+  lines   ReceiptLine[]
+  moves   StockMovement[]
+
+  @@unique([productId, code])
+  @@index([expiryDate])
+}
+
+model Receipt {
+  id          String        @id @default(cuid())
+  code        String        @unique // RB-0001
+  customerId  String
+  status      ReceiptStatus @default(DRAFT)
+  receivedAt  DateTime      @default(now())
+  notes       String?
+  confirmedAt DateTime?
+  createdById String?
+
+  customer Customer      @relation(fields: [customerId], references: [id])
+  pallets  Pallet[]
+  lines    ReceiptLine[]
+  photos   Photo[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([customerId])
+  @@index([status])
+  @@index([receivedAt])
+}
+
+// Estiba cedulizada: el rótulo físico que entra al cuarto.
+// Agrupa las pesadas (líneas) que van sobre esa estiba.
+model Pallet {
+  id          String       @id @default(cuid())
+  code        String       @unique // TW-000001 — la "cédula"
+  receiptId   String
+  environment Environment // a qué cuarto/bodega entra
+  status      PalletStatus @default(IN_STORAGE)
+  createdAt   DateTime     @default(now())
+
+  receipt Receipt       @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+  lines   ReceiptLine[]
+
+  @@index([receiptId])
+}
+
+// Una pesada: referencia + lote + pesos (o unidades).
+model ReceiptLine {
+  id        String  @id @default(cuid())
+  receiptId String
+  palletId  String?
+  productId String
+  lotCode   String
+  expiryDate DateTime?
+  lotId     String? // se fija al confirmar la recepción
+
+  // Productos por KG:
+  grossKg     Decimal? @db.Decimal(10, 2) // bruto (con canastillas y estiba)
+  canastillas Int      @default(0)
+  estibas     Int      @default(0)
+  tareKg      Decimal? @db.Decimal(10, 2) // propuesta automática, editable
+  netKg       Decimal? @db.Decimal(10, 2)
+
+  // Productos por UND:
+  units Int?
+
+  notes     String?
+  createdAt DateTime @default(now())
+
+  receipt Receipt @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+  pallet  Pallet? @relation(fields: [palletId], references: [id])
+  product Product @relation(fields: [productId], references: [id])
+  lot     Lot?    @relation(fields: [lotId], references: [id])
+
+  movement StockMovement?
+
+  @@index([receiptId])
+  @@index([palletId])
+}
+
+// ============================================================
+// Kardex: libro mayor de movimientos. El stock SIEMPRE se
+// calcula de aquí — nunca se edita a mano.
+// ============================================================
+
+enum StockMovementType {
+  IN
+  OUT
+  ADJUST_IN
+  ADJUST_OUT
+}
+
+model StockMovement {
+  id        String            @id @default(cuid())
+  type      StockMovementType
+  productId String
+  lotId     String?
+  // kg (decimal) para productos por peso; unidades para los demás
+  qty       Decimal           @db.Decimal(12, 2)
+  reference String? // documento origen legible, ej. "Recepción RB-0001"
+
+  receiptLineId String? @unique
+  createdById   String?
+  createdAt     DateTime @default(now())
+
+  product Product      @relation(fields: [productId], references: [id])
+  lot     Lot?         @relation(fields: [lotId], references: [id])
+  line    ReceiptLine? @relation(fields: [receiptLineId], references: [id])
+
+  @@index([productId])
+  @@index([lotId])
+  @@index([createdAt])
+}
+
+// ============================================================
+// Cross-dock: descargues (entradas de cajas) y salidas parciales
+// ============================================================
+
+enum CrossDockStatus {
+  OPEN // con cajas pendientes por salir
+  CLOSED // saldo en cero
+  CANCELLED
+}
+
+model CrossDockReceipt {
+  id         String          @id @default(cuid())
+  code       String          @unique // CD-0001
+  customerId String
+  status     CrossDockStatus @default(OPEN)
+  arrivedAt  DateTime        @default(now())
+  boxesIn    Int
+  grossKg    Decimal?        @db.Decimal(10, 2)
+  notes      String?
+  createdById String?
+
+  customer   Customer            @relation(fields: [customerId], references: [id])
+  dispatches CrossDockDispatch[]
+  photos     Photo[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([customerId])
+  @@index([status])
+}
+
+model CrossDockDispatch {
+  id                 String   @id @default(cuid())
+  crossDockReceiptId String
+  dispatchedAt       DateTime @default(now())
+  boxesOut           Int
+  destination        String? // vehículo/destino, texto libre
+  notes              String?
+  createdById        String?
+  createdAt          DateTime @default(now())
+
+  crossDockReceipt CrossDockReceipt @relation(fields: [crossDockReceiptId], references: [id], onDelete: Cascade)
+  photos           Photo[]
+
+  @@index([crossDockReceiptId])
+}
+
+// ============================================================
+// Fotos (soportes): key del StorageService (local/GCS)
+// ============================================================
+
+model Photo {
+  id                  String   @id @default(cuid())
+  key                 String // folder/uuid.ext en el storage
+  receiptId           String?
+  crossDockReceiptId  String?
+  crossDockDispatchId String?
+  createdById         String?
+  createdAt           DateTime @default(now())
+
+  receipt           Receipt?           @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+  crossDockReceipt  CrossDockReceipt?  @relation(fields: [crossDockReceiptId], references: [id], onDelete: Cascade)
+  crossDockDispatch CrossDockDispatch? @relation(fields: [crossDockDispatchId], references: [id], onDelete: Cascade)
+
+  @@index([receiptId])
+  @@index([crossDockReceiptId])
+  @@index([crossDockDispatchId])
 }

@@ -4,6 +4,13 @@ import { DashboardPage } from './pages/Dashboard';
 import { CustomersPage } from './pages/Customers';
 import { ProductsPage } from './pages/Products';
 import { UsersPage } from './pages/Users';
+import { ReceiptsPage } from './pages/Receipts';
+import { ReceiptDetailPage } from './pages/ReceiptDetail';
+import { PalletLabelPage } from './pages/PalletLabel';
+import { CrossDockPage } from './pages/CrossDock';
+import { CrossDockDetailPage } from './pages/CrossDockDetail';
+import { SettingsPage } from './pages/Settings';
+import { MorePage } from './pages/More';
 import { ProtectedLayout } from './components/ProtectedLayout';
 import { useAuthStore } from './lib/auth-store';
 
@@ -32,8 +39,15 @@ export default function App() {
       />
       <Route element={<ProtectedLayout />}>
         <Route path="/" element={<DashboardPage />} />
+        <Route path="/receipts" element={<ReceiptsPage />} />
+        <Route path="/receipts/:id" element={<ReceiptDetailPage />} />
+        <Route path="/pallets/:palletId/label" element={<PalletLabelPage />} />
+        <Route path="/crossdock" element={<CrossDockPage />} />
+        <Route path="/crossdock/:id" element={<CrossDockDetailPage />} />
         <Route path="/customers" element={<CustomersPage />} />
         <Route path="/products" element={<ProductsPage />} />
+        <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/more" element={<MorePage />} />
         <Route
           path="/users"
           element={

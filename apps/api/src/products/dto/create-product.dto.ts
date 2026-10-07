@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Environment } from '@prisma/client';
+import { Environment, MeasureType } from '@prisma/client';
 import { IsEnum, IsInt, IsOptional, IsString, Min, MinLength } from 'class-validator';
 
 export class CreateProductDto {
@@ -21,6 +21,11 @@ export class CreateProductDto {
   @IsOptional()
   @IsString()
   barcode?: string;
+
+  @ApiPropertyOptional({ enum: MeasureType, default: MeasureType.UND, description: 'KG = por peso, UND = por unidades' })
+  @IsOptional()
+  @IsEnum(MeasureType)
+  measure?: MeasureType;
 
   @ApiPropertyOptional({ default: 'UND' })
   @IsOptional()

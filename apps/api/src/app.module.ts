@@ -8,6 +8,9 @@ import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { CustomersModule } from './customers/customers.module';
 import { ProductsModule } from './products/products.module';
+import { SettingsModule } from './settings/settings.module';
+import { ReceiptsModule } from './receipts/receipts.module';
+import { CrossDockModule } from './crossdock/crossdock.module';
 import { HealthController } from './health.controller';
 
 const staticModules =
@@ -31,6 +34,9 @@ const staticModules =
     UsersModule,
     CustomersModule,
     ProductsModule,
+    SettingsModule,
+    ReceiptsModule,
+    CrossDockModule,
   ],
   controllers: [HealthController],
 })

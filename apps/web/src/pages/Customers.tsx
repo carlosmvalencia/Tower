@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { Plus, Pencil } from 'lucide-react';
 import { api } from '../lib/api';
-import type { Customer, Paginated } from '../lib/types';
+import { SERVICE_TYPE_LABELS, type Customer, type CustomerServiceType, type Paginated } from '../lib/types';
 import { PageHeader } from '../components/PageHeader';
 import { Modal } from '../components/Modal';
 import { Pagination } from '../components/Pagination';
@@ -12,9 +12,11 @@ interface FormValues {
   code: string;
   name: string;
   taxId: string;
+  addressLine: string;
   contactName: string;
   phone: string;
   email: string;
+  serviceType: CustomerServiceType;
   notes: string;
   isActive: boolean;
 }
@@ -23,9 +25,11 @@ const emptyForm: FormValues = {
   code: '',
   name: '',
   taxId: '',
+  addressLine: '',
   contactName: '',
   phone: '',
   email: '',
+  serviceType: 'INVENTORY',
   notes: '',
   isActive: true,
 };
@@ -59,9 +63,11 @@ export function CustomersPage() {
       code: c.code,
       name: c.name,
       taxId: c.taxId ?? '',
+      addressLine: c.addressLine ?? '',
       contactName: c.contactName ?? '',
       phone: c.phone ?? '',
       email: c.email ?? '',
+      serviceType: c.serviceType ?? 'INVENTORY',
       notes: c.notes ?? '',
       isActive: c.isActive,
     });
@@ -75,9 +81,11 @@ export function CustomersPage() {
         code: values.code.trim() || undefined,
         name: values.name.trim(),
         taxId: values.taxId.trim() || undefined,
+        addressLine: values.addressLine.trim() || undefined,
         contactName: values.contactName.trim() || undefined,
         phone: values.phone.trim() || undefined,
         email: values.email.trim() || undefined,
+        serviceType: values.serviceType,
         notes: values.notes.trim() || undefined,
         ...(editing ? { isActive: values.isActive } : {}),
       };
@@ -128,6 +136,7 @@ export function CustomersPage() {
               <th className="px-4 py-3">Código</th>
               <th className="px-4 py-3">Nombre</th>
               <th className="px-4 py-3">NIT</th>
+              <th className="px-4 py-3">Servicio</th>
               <th className="px-4 py-3">Contacto</th>
               <th className="px-4 py-3">Productos</th>
               <th className="px-4 py-3">Estado</th>
@@ -140,6 +149,7 @@ export function CustomersPage() {
                 <td className="px-4 py-3 font-mono text-xs">{c.code}</td>
                 <td className="px-4 py-3 font-medium">{c.name}</td>
                 <td className="px-4 py-3">{c.taxId ?? '—'}</td>
+                <td className="px-4 py-3 text-xs">{SERVICE_TYPE_LABELS[c.serviceType]}</td>
                 <td className="px-4 py-3">{c.contactName ?? '—'}</td>
                 <td className="px-4 py-3">{c._count?.products ?? 0}</td>
                 <td className="px-4 py-3">
@@ -154,7 +164,7 @@ export function CustomersPage() {
             ))}
             {data && data.items.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-slate-400">
+                <td colSpan={8} className="px-4 py-8 text-center text-slate-400">
                   Sin resultados
                 </td>
               </tr>
@@ -171,7 +181,9 @@ export function CustomersPage() {
               <div className="font-medium">{c.name}</div>
               {c.isActive ? <span className="badge-green">Activo</span> : <span className="badge-gray">Inactivo</span>}
             </div>
-            <div className="text-xs text-slate-500 mt-1 font-mono">{c.code}</div>
+            <div className="text-xs text-slate-500 mt-1">
+              <span className="font-mono">{c.code}</span> · {SERVICE_TYPE_LABELS[c.serviceType]}
+            </div>
             <div className="text-xs text-slate-500 mt-1">
               {c._count?.products ?? 0} producto(s){c.contactName ? ` · ${c.contactName}` : ''}
             </div>
@@ -199,6 +211,20 @@ export function CustomersPage() {
             <div>
               <label className="label">NIT</label>
               <input className="input" {...register('taxId')} />
+            </div>
+            <div>
+              <label className="label">Tipo de servicio *</label>
+              <select className="input" {...register('serviceType')}>
+                {Object.entries(SERVICE_TYPE_LABELS).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="sm:col-span-2">
+              <label className="label">Dirección</label>
+              <input className="input" {...register('addressLine')} />
             </div>
             <div>
               <label className="label">Contacto</label>

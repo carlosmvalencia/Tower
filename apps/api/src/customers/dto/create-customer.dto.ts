@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEmail, IsOptional, IsString, MinLength } from 'class-validator';
+import { CustomerServiceType } from '@prisma/client';
+import { IsEmail, IsEnum, IsOptional, IsString, MinLength } from 'class-validator';
 
 export class CreateCustomerDto {
   /** Si no se especifica, el backend genera el siguiente CL-XXXX. */
@@ -17,6 +18,16 @@ export class CreateCustomerDto {
   @IsOptional()
   @IsString()
   taxId?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  addressLine?: string;
+
+  @ApiPropertyOptional({ enum: CustomerServiceType })
+  @IsOptional()
+  @IsEnum(CustomerServiceType)
+  serviceType?: CustomerServiceType;
 
   @ApiPropertyOptional()
   @IsOptional()

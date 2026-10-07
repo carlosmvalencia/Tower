@@ -1,6 +1,16 @@
 import { Navigate, NavLink, Outlet, useNavigate } from 'react-router-dom';
 import clsx from 'clsx';
-import { Home, Building2, Package, Users as UsersIcon, LogOut } from 'lucide-react';
+import {
+  Home,
+  Building2,
+  Package,
+  PackagePlus,
+  ArrowLeftRight,
+  Users as UsersIcon,
+  Settings,
+  LogOut,
+  MoreHorizontal,
+} from 'lucide-react';
 import { api } from '../lib/api';
 import { useAuthStore } from '../lib/auth-store';
 import { ROLE_LABELS, type UserRole } from '../lib/types';
@@ -12,11 +22,23 @@ interface NavItem {
   roles?: UserRole[]; // sin roles = visible para todos
 }
 
+// Sidebar completo (desktop)
 const navItems: NavItem[] = [
   { to: '/', label: 'Inicio', icon: Home },
+  { to: '/receipts', label: 'Recepción', icon: PackagePlus },
+  { to: '/crossdock', label: 'Cross-dock', icon: ArrowLeftRight },
   { to: '/customers', label: 'Clientes', icon: Building2 },
   { to: '/products', label: 'Productos', icon: Package },
   { to: '/users', label: 'Usuarios', icon: UsersIcon, roles: ['ADMIN'] },
+  { to: '/settings', label: 'Configuración', icon: Settings },
+];
+
+// Barra inferior (móvil): lo operativo a la mano; el resto va en "Más"
+const mobileNavItems: NavItem[] = [
+  { to: '/', label: 'Inicio', icon: Home },
+  { to: '/receipts', label: 'Recepción', icon: PackagePlus },
+  { to: '/crossdock', label: 'Cross-dock', icon: ArrowLeftRight },
+  { to: '/more', label: 'Más', icon: MoreHorizontal },
 ];
 
 export function ProtectedLayout() {
@@ -26,6 +48,7 @@ export function ProtectedLayout() {
   if (!accessToken) return <Navigate to="/login" replace />;
 
   const items = navItems.filter((i) => !i.roles || (user && i.roles.includes(user.role)));
+  const mobileItems = mobileNavItems.filter((i) => !i.roles || (user && i.roles.includes(user.role)));
 
   const logout = async () => {
     try {
@@ -40,7 +63,7 @@ export function ProtectedLayout() {
   return (
     <div className="min-h-screen bg-slate-100">
       {/* ===== Sidebar (desktop) ===== */}
-      <aside className="hidden md:flex fixed inset-y-0 left-0 w-60 flex-col bg-brand-900 text-white">
+      <aside className="hidden md:flex fixed inset-y-0 left-0 w-60 flex-col bg-brand-900 text-white print:hidden">
         <div className="px-5 py-5 border-b border-white/10">
           <div className="text-2xl font-bold tracking-tight">Tower</div>
           <div className="text-xs text-brand-200">WMS de All-logistics</div>
@@ -73,7 +96,7 @@ export function ProtectedLayout() {
       </aside>
 
       {/* ===== Header (móvil) ===== */}
-      <header className="md:hidden sticky top-0 z-40 bg-brand-900 text-white flex items-center justify-between px-4 h-14 shadow">
+      <header className="md:hidden sticky top-0 z-40 bg-brand-900 text-white flex items-center justify-between px-4 h-14 shadow print:hidden">
         <div>
           <span className="text-lg font-bold">Tower</span>
           <span className="ml-2 text-xs text-brand-300">{user?.fullName}</span>
@@ -84,19 +107,19 @@ export function ProtectedLayout() {
       </header>
 
       {/* ===== Contenido ===== */}
-      <main className="md:ml-60 px-4 py-5 md:px-8 md:py-7 pb-24 md:pb-7">
+      <main className="md:ml-60 px-4 py-5 md:px-8 md:py-7 pb-24 md:pb-7 print:ml-0 print:p-0">
         <Outlet />
       </main>
 
       {/* ===== Nav inferior (móvil) ===== */}
       <nav
-        className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-slate-200 grid"
+        className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-slate-200 grid print:hidden"
         style={{
-          gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))`,
+          gridTemplateColumns: `repeat(${mobileItems.length}, minmax(0, 1fr))`,
           paddingBottom: 'env(safe-area-inset-bottom)',
         }}
       >
-        {items.map(({ to, label, icon: Icon }) => (
+        {mobileItems.map(({ to, label, icon: Icon }) => (
           <NavLink
             key={to}
             to={to}
