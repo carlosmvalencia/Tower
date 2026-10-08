@@ -155,6 +155,94 @@ export interface CrossDockReceipt {
   _count?: { photos: number };
 }
 
+// ---------- Sedes ----------
+
+export interface CustomerSite {
+  id: string;
+  customerId: string;
+  name: string;
+  addressLine?: string | null;
+  city?: string | null;
+  contactName?: string | null;
+  phone?: string | null;
+  notes?: string | null;
+  isActive: boolean;
+}
+
+// ---------- Salidas (SM) ----------
+
+export type DispatchStatus = 'DRAFT' | 'CONFIRMED' | 'CANCELLED';
+
+export interface LotRef {
+  id: string;
+  code: string;
+  expiryDate?: string | null;
+}
+
+export interface DispatchLine {
+  id: string;
+  dispatchId: string;
+  productId: string;
+  lotId: string;
+  qty: string;
+  notes?: string | null;
+  product: ProductRef;
+  lot: LotRef;
+}
+
+export interface Dispatch {
+  id: string;
+  code: string;
+  customerId: string;
+  siteId?: string | null;
+  status: DispatchStatus;
+  dispatchedAt: string;
+  notes?: string | null;
+  confirmedAt?: string | null;
+  customer?: CustomerOption;
+  site?: CustomerSite | null;
+  lines: DispatchLine[];
+  photos: Photo[];
+  _count?: { lines: number; photos: number };
+}
+
+// ---------- Ajustes (AJ) ----------
+
+export type AdjustmentDirection = 'IN' | 'OUT';
+
+export interface Adjustment {
+  id: string;
+  code: string;
+  direction: AdjustmentDirection;
+  qty: string;
+  reason: string;
+  notes?: string | null;
+  createdAt: string;
+  product: ProductRef & { customer?: CustomerOption };
+  lot: LotRef;
+}
+
+// ---------- Inventario ----------
+
+export interface LotAvailability {
+  lotId: string;
+  lotCode: string;
+  expiryDate?: string | null;
+  available: number;
+}
+
+export interface StockRow {
+  product: Product;
+  total: number;
+  lots: LotAvailability[];
+}
+
+export const DISPATCH_STATUS_LABELS: Record<DispatchStatus, string> = {
+  DRAFT: 'En registro',
+  CONFIRMED: 'Confirmada',
+  CANCELLED: 'Anulada',
+};
+
 export const RECEIPT_STATUS_LABELS: Record<ReceiptStatus, string> = {
   DRAFT: 'En registro',
   CONFIRMED: 'Confirmada',

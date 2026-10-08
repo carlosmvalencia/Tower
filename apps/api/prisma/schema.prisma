@@ -85,6 +85,30 @@ model Customer {
   products          Product[]
   receipts          Receipt[]
   crossDockReceipts CrossDockReceipt[]
+  sites             CustomerSite[]
+  dispatches        Dispatch[]
+}
+
+// Sede del cliente: destino de las salidas de mercancía.
+// Ej: Gran Colombia tiene 12 sedes.
+model CustomerSite {
+  id          String  @id @default(cuid())
+  customerId  String
+  name        String
+  addressLine String?
+  city        String?
+  contactName String?
+  phone       String?
+  notes       String?
+  isActive    Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  customer   Customer   @relation(fields: [customerId], references: [id])
+  dispatches Dispatch[]
+
+  @@index([customerId])
 }
 
 // Cómo se maneja el producto: por peso (kg, cantidades decimales)
@@ -112,10 +136,12 @@ model Product {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  customer Customer @relation(fields: [customerId], references: [id])
-  lots     Lot[]
-  lines    ReceiptLine[]
-  moves    StockMovement[]
+  customer      Customer        @relation(fields: [customerId], references: [id])
+  lots          Lot[]
+  lines         ReceiptLine[]
+  moves         StockMovement[]
+  dispatchLines DispatchLine[]
+  adjustments   Adjustment[]
 
   @@unique([customerId, code])
   @@index([customerId])
@@ -156,9 +182,11 @@ model Lot {
   expiryDate DateTime?
   createdAt  DateTime  @default(now())
 
-  product Product         @relation(fields: [productId], references: [id])
-  lines   ReceiptLine[]
-  moves   StockMovement[]
+  product       Product         @relation(fields: [productId], references: [id])
+  lines         ReceiptLine[]
+  moves         StockMovement[]
+  dispatchLines DispatchLine[]
+  adjustments   Adjustment[]
 
   @@unique([productId, code])
   @@index([expiryDate])
@@ -256,18 +284,106 @@ model StockMovement {
   lotId     String?
   // kg (decimal) para productos por peso; unidades para los demás
   qty       Decimal           @db.Decimal(12, 2)
-  reference String? // documento origen legible, ej. "Recepción RB-0001"
+  reference String? // documento origen legible, ej. "Entrada EM-0001"
 
-  receiptLineId String? @unique
-  createdById   String?
-  createdAt     DateTime @default(now())
+  receiptLineId  String? @unique
+  dispatchLineId String? @unique
+  adjustmentId   String? @unique
+  createdById    String?
+  createdAt      DateTime @default(now())
 
-  product Product      @relation(fields: [productId], references: [id])
-  lot     Lot?         @relation(fields: [lotId], references: [id])
-  line    ReceiptLine? @relation(fields: [receiptLineId], references: [id])
+  product      Product       @relation(fields: [productId], references: [id])
+  lot          Lot?          @relation(fields: [lotId], references: [id])
+  line         ReceiptLine?  @relation(fields: [receiptLineId], references: [id])
+  dispatchLine DispatchLine? @relation(fields: [dispatchLineId], references: [id])
+  adjustment   Adjustment?   @relation(fields: [adjustmentId], references: [id])
 
   @@index([productId])
   @@index([lotId])
+  @@index([createdAt])
+}
+
+// ============================================================
+// Salidas de mercancía (SM): descuentan inventario hacia una
+// sede del cliente. Las líneas eligen lote (FEFO sugerido).
+// ============================================================
+
+enum DispatchStatus {
+  DRAFT
+  CONFIRMED
+  CANCELLED
+}
+
+model Dispatch {
+  id          String         @id @default(cuid())
+  code        String         @unique // SM-0001
+  customerId  String
+  siteId      String?
+  status      DispatchStatus @default(DRAFT)
+  dispatchedAt DateTime      @default(now())
+  notes       String?
+  confirmedAt DateTime?
+  createdById String?
+
+  customer Customer       @relation(fields: [customerId], references: [id])
+  site     CustomerSite?  @relation(fields: [siteId], references: [id])
+  lines    DispatchLine[]
+  photos   Photo[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([customerId])
+  @@index([status])
+  @@index([dispatchedAt])
+}
+
+model DispatchLine {
+  id         String  @id @default(cuid())
+  dispatchId String
+  productId  String
+  lotId      String
+  qty        Decimal @db.Decimal(12, 2) // kg o unidades según el producto
+  notes      String?
+  createdAt  DateTime @default(now())
+
+  dispatch Dispatch @relation(fields: [dispatchId], references: [id], onDelete: Cascade)
+  product  Product  @relation(fields: [productId], references: [id])
+  lot      Lot      @relation(fields: [lotId], references: [id])
+
+  movement StockMovement?
+
+  @@index([dispatchId])
+}
+
+// ============================================================
+// Ajustes de inventario (AJ): correcciones +/- con motivo,
+// solo Supervisor/Admin. Un ajuste = un movimiento.
+// ============================================================
+
+enum AdjustmentDirection {
+  IN
+  OUT
+}
+
+model Adjustment {
+  id          String              @id @default(cuid())
+  code        String              @unique // AJ-0001
+  productId   String
+  lotId       String
+  direction   AdjustmentDirection
+  qty         Decimal             @db.Decimal(12, 2)
+  reason      String // motivo obligatorio
+  notes       String?
+  createdById String?
+  createdAt   DateTime            @default(now())
+
+  product Product @relation(fields: [productId], references: [id])
+  lot     Lot     @relation(fields: [lotId], references: [id])
+
+  movement StockMovement?
+
+  @@index([productId])
   @@index([createdAt])
 }
 
@@ -327,16 +443,19 @@ model Photo {
   id                  String   @id @default(cuid())
   key                 String // folder/uuid.ext en el storage
   receiptId           String?
+  dispatchId          String?
   crossDockReceiptId  String?
   crossDockDispatchId String?
   createdById         String?
   createdAt           DateTime @default(now())
 
   receipt           Receipt?           @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+  dispatch          Dispatch?          @relation(fields: [dispatchId], references: [id], onDelete: Cascade)
   crossDockReceipt  CrossDockReceipt?  @relation(fields: [crossDockReceiptId], references: [id], onDelete: Cascade)
   crossDockDispatch CrossDockDispatch? @relation(fields: [crossDockDispatchId], references: [id], onDelete: Cascade)
 
   @@index([receiptId])
+  @@index([dispatchId])
   @@index([crossDockReceiptId])
   @@index([crossDockDispatchId])
 }

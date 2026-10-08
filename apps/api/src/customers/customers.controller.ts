@@ -9,6 +9,7 @@ import { BulkDeleteDto } from '../common/bulk-delete.helper';
 import { CustomersService } from './customers.service';
 import { CreateCustomerDto } from './dto/create-customer.dto';
 import { UpdateCustomerDto } from './dto/update-customer.dto';
+import { CreateSiteDto, UpdateSiteDto } from './dto/site.dto';
 
 @ApiTags('customers')
 @ApiBearerAuth()
@@ -54,5 +55,24 @@ export class CustomersController {
   @Post('bulk-delete')
   bulkDelete(@Body() dto: BulkDeleteDto) {
     return this.customers.hardDeleteMany(dto.ids);
+  }
+
+  // ---------- Sedes ----------
+
+  @Get(':id/sites')
+  listSites(@Param('id') id: string, @Query('all') all?: string) {
+    return this.customers.listSites(id, all === 'true');
+  }
+
+  @Roles(UserRole.ADMIN, UserRole.SUPERVISOR)
+  @Post(':id/sites')
+  createSite(@Param('id') id: string, @Body() dto: CreateSiteDto) {
+    return this.customers.createSite(id, dto);
+  }
+
+  @Roles(UserRole.ADMIN, UserRole.SUPERVISOR)
+  @Patch(':id/sites/:siteId')
+  updateSite(@Param('id') id: string, @Param('siteId') siteId: string, @Body() dto: UpdateSiteDto) {
+    return this.customers.updateSite(id, siteId, dto);
   }
 }

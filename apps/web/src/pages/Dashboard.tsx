@@ -51,9 +51,9 @@ export function DashboardPage() {
       <div className="card p-5 mt-6 max-w-xl bg-brand-50 border-brand-200">
         <div className="font-semibold text-brand-900 mb-1">Próximamente</div>
         <ul className="text-sm text-brand-800 list-disc list-inside space-y-1">
-          <li>Recepción de mercancía con lotes y vencimientos</li>
-          <li>Inventario por ambiente y kardex</li>
-          <li>Despacho con FEFO y cross-docking</li>
+          <li>Indicadores: ocupación, rotación y vencimientos próximos</li>
+          <li>Kardex consultable por producto</li>
+          <li>Integración con Sandor (salidas → ruteros)</li>
         </ul>
       </div>
     </div>

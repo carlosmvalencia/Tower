@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
-import { Plus, Pencil } from 'lucide-react';
+import { Plus, Pencil, MapPin } from 'lucide-react';
+import { SitesModal } from '../components/SitesModal';
 import { api } from '../lib/api';
 import { SERVICE_TYPE_LABELS, type Customer, type CustomerServiceType, type Paginated } from '../lib/types';
 import { PageHeader } from '../components/PageHeader';
@@ -39,6 +40,7 @@ export function CustomersPage() {
   const [page, setPage] = useState(1);
   const [q, setQ] = useState('');
   const [editing, setEditing] = useState<Customer | null>(null);
+  const [sitesFor, setSitesFor] = useState<Customer | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -155,7 +157,10 @@ export function CustomersPage() {
                 <td className="px-4 py-3">
                   {c.isActive ? <span className="badge-green">Activo</span> : <span className="badge-gray">Inactivo</span>}
                 </td>
-                <td className="px-4 py-3 text-right">
+                <td className="px-4 py-3 text-right space-x-2 whitespace-nowrap">
+                  <button className="btn-secondary" onClick={() => setSitesFor(c)} title="Sedes" aria-label={`Sedes de ${c.name}`}>
+                    <MapPin size={14} />
+                  </button>
                   <button className="btn-secondary" onClick={() => openEdit(c)} aria-label={`Editar ${c.name}`}>
                     <Pencil size={14} />
                   </button>
@@ -176,18 +181,27 @@ export function CustomersPage() {
       {/* Tarjetas (móvil) */}
       <div className="md:hidden space-y-3">
         {data?.items.map((c) => (
-          <button key={c.id} className="card w-full p-4 text-left" onClick={() => openEdit(c)}>
-            <div className="flex items-center justify-between">
-              <div className="font-medium">{c.name}</div>
-              {c.isActive ? <span className="badge-green">Activo</span> : <span className="badge-gray">Inactivo</span>}
-            </div>
-            <div className="text-xs text-slate-500 mt-1">
-              <span className="font-mono">{c.code}</span> · {SERVICE_TYPE_LABELS[c.serviceType]}
-            </div>
-            <div className="text-xs text-slate-500 mt-1">
-              {c._count?.products ?? 0} producto(s){c.contactName ? ` · ${c.contactName}` : ''}
-            </div>
-          </button>
+          <div key={c.id} className="card w-full p-4 relative">
+            <button
+              className="absolute top-3 right-3 btn-secondary"
+              onClick={() => setSitesFor(c)}
+              aria-label={`Sedes de ${c.name}`}
+            >
+              <MapPin size={14} />
+            </button>
+            <button className="w-full text-left pr-12" onClick={() => openEdit(c)}>
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className="font-medium">{c.name}</div>
+                {c.isActive ? <span className="badge-green">Activo</span> : <span className="badge-gray">Inactivo</span>}
+              </div>
+              <div className="text-xs text-slate-500 mt-1">
+                <span className="font-mono">{c.code}</span> · {SERVICE_TYPE_LABELS[c.serviceType]}
+              </div>
+              <div className="text-xs text-slate-500 mt-1">
+                {c._count?.products ?? 0} producto(s){c.contactName ? ` · ${c.contactName}` : ''}
+              </div>
+            </button>
+          </div>
         ))}
         {data && data.items.length === 0 && (
           <div className="text-center text-slate-400 py-8">Sin resultados</div>
@@ -195,6 +209,8 @@ export function CustomersPage() {
       </div>
 
       {data && <Pagination page={data.page} totalPages={data.totalPages} total={data.total} onChange={setPage} />}
+
+      <SitesModal customer={sitesFor} onClose={() => setSitesFor(null)} />
 
       <Modal open={modalOpen} title={editing ? `Editar ${editing.name}` : 'Nuevo cliente'} onClose={() => setModalOpen(false)}>
         <form onSubmit={handleSubmit((v) => save.mutate(v))} className="space-y-4">

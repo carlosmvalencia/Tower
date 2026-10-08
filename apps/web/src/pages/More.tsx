@@ -1,5 +1,13 @@
 import { Link } from 'react-router-dom';
-import { Building2, ChevronRight, Package, Settings, Users as UsersIcon } from 'lucide-react';
+import {
+  Boxes,
+  Building2,
+  ChevronRight,
+  Package,
+  Settings,
+  SlidersHorizontal,
+  Users as UsersIcon,
+} from 'lucide-react';
 import { useAuthStore } from '../lib/auth-store';
 import { PageHeader } from '../components/PageHeader';
 
@@ -8,6 +16,8 @@ export function MorePage() {
   const user = useAuthStore((s) => s.user);
 
   const items = [
+    { to: '/inventory', label: 'Inventario', icon: Boxes },
+    { to: '/adjustments', label: 'Ajustes (AJ)', icon: SlidersHorizontal },
     { to: '/customers', label: 'Clientes', icon: Building2 },
     { to: '/products', label: 'Productos', icon: Package },
     ...(user?.role === 'ADMIN' ? [{ to: '/users', label: 'Usuarios', icon: UsersIcon }] : []),

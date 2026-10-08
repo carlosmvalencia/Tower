@@ -5,6 +5,7 @@ import { buildPaginatedResult, Paginated, PaginationQueryDto } from '../common/p
 import { BulkDeleteReport, describeDbError, toBulkDeleteReport } from '../common/bulk-delete.helper';
 import { CreateCustomerDto } from './dto/create-customer.dto';
 import { UpdateCustomerDto } from './dto/update-customer.dto';
+import { CreateSiteDto, UpdateSiteDto } from './dto/site.dto';
 
 @Injectable()
 export class CustomersService {
@@ -82,6 +83,27 @@ export class CustomersService {
       }
     }
     return toBulkDeleteReport(deletedIds, failed);
+  }
+
+  // ---------- Sedes ----------
+
+  async listSites(customerId: string, includeInactive = false) {
+    await this.findById(customerId);
+    return this.prisma.customerSite.findMany({
+      where: { customerId, ...(includeInactive ? {} : { isActive: true }) },
+      orderBy: { name: 'asc' },
+    });
+  }
+
+  async createSite(customerId: string, dto: CreateSiteDto) {
+    await this.findById(customerId);
+    return this.prisma.customerSite.create({ data: { customerId, ...dto } });
+  }
+
+  async updateSite(customerId: string, siteId: string, dto: UpdateSiteDto) {
+    const site = await this.prisma.customerSite.findFirst({ where: { id: siteId, customerId } });
+    if (!site) throw new NotFoundException('Sede no encontrada');
+    return this.prisma.customerSite.update({ where: { id: siteId }, data: dto });
   }
 
   private async ensureCodeAvailable(code: string) {

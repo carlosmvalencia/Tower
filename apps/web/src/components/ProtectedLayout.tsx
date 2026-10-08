@@ -5,6 +5,9 @@ import {
   Building2,
   Package,
   PackagePlus,
+  PackageMinus,
+  Boxes,
+  SlidersHorizontal,
   ArrowLeftRight,
   Users as UsersIcon,
   Settings,
@@ -25,8 +28,11 @@ interface NavItem {
 // Sidebar completo (desktop)
 const navItems: NavItem[] = [
   { to: '/', label: 'Inicio', icon: Home },
-  { to: '/receipts', label: 'Recepción', icon: PackagePlus },
+  { to: '/receipts', label: 'Entradas (EM)', icon: PackagePlus },
+  { to: '/dispatches', label: 'Salidas (SM)', icon: PackageMinus },
   { to: '/crossdock', label: 'Cross-dock', icon: ArrowLeftRight },
+  { to: '/inventory', label: 'Inventario', icon: Boxes },
+  { to: '/adjustments', label: 'Ajustes (AJ)', icon: SlidersHorizontal },
   { to: '/customers', label: 'Clientes', icon: Building2 },
   { to: '/products', label: 'Productos', icon: Package },
   { to: '/users', label: 'Usuarios', icon: UsersIcon, roles: ['ADMIN'] },
@@ -36,7 +42,8 @@ const navItems: NavItem[] = [
 // Barra inferior (móvil): lo operativo a la mano; el resto va en "Más"
 const mobileNavItems: NavItem[] = [
   { to: '/', label: 'Inicio', icon: Home },
-  { to: '/receipts', label: 'Recepción', icon: PackagePlus },
+  { to: '/receipts', label: 'Entradas', icon: PackagePlus },
+  { to: '/dispatches', label: 'Salidas', icon: PackageMinus },
   { to: '/crossdock', label: 'Cross-dock', icon: ArrowLeftRight },
   { to: '/more', label: 'Más', icon: MoreHorizontal },
 ];

@@ -183,8 +183,8 @@ export function ReceiptDetailPage() {
   return (
     <div>
       {/* ---------- Encabezado ---------- */}
-      <Link to="/receipts" className="inline-flex items-center gap-1 text-sm text-brand-700 mb-3">
-        <ArrowLeft size={16} /> Recepciones
+      <Link to="/receipts" className="inline-flex items-center gap-1 text-sm text-brand-700 mb-3 print:hidden">
+        <ArrowLeft size={16} /> Entradas
       </Link>
       <div className="flex flex-wrap items-start justify-between gap-3 mb-5">
         <div>

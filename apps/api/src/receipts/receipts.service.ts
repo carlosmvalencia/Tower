@@ -79,7 +79,7 @@ export class ReceiptsService {
   }
 
   async create(dto: CreateReceiptDto, userId?: string) {
-    const code = await this.nextCode('receipt', 'RB-', 4);
+    const code = await this.nextCode('receipt', 'EM-', 4);
     const receipt = await this.prisma.receipt.create({
       data: {
         code,
@@ -284,7 +284,7 @@ export class ReceiptsService {
             productId: line.productId,
             lotId: lot.id,
             qty,
-            reference: `Recepción ${receipt.code}`,
+            reference: `Entrada ${receipt.code}`,
             receiptLineId: line.id,
             createdById: userId,
           },

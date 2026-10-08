@@ -9,6 +9,10 @@ import { ReceiptDetailPage } from './pages/ReceiptDetail';
 import { PalletLabelPage } from './pages/PalletLabel';
 import { CrossDockPage } from './pages/CrossDock';
 import { CrossDockDetailPage } from './pages/CrossDockDetail';
+import { DispatchesPage } from './pages/Dispatches';
+import { DispatchDetailPage } from './pages/DispatchDetail';
+import { InventoryPage } from './pages/Inventory';
+import { AdjustmentsPage } from './pages/Adjustments';
 import { SettingsPage } from './pages/Settings';
 import { MorePage } from './pages/More';
 import { ProtectedLayout } from './components/ProtectedLayout';
@@ -44,6 +48,10 @@ export default function App() {
         <Route path="/pallets/:palletId/label" element={<PalletLabelPage />} />
         <Route path="/crossdock" element={<CrossDockPage />} />
         <Route path="/crossdock/:id" element={<CrossDockDetailPage />} />
+        <Route path="/dispatches" element={<DispatchesPage />} />
+        <Route path="/dispatches/:id" element={<DispatchDetailPage />} />
+        <Route path="/inventory" element={<InventoryPage />} />
+        <Route path="/adjustments" element={<AdjustmentsPage />} />
         <Route path="/customers" element={<CustomersPage />} />
         <Route path="/products" element={<ProductsPage />} />
         <Route path="/settings" element={<SettingsPage />} />
