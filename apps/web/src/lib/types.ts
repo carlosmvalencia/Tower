@@ -73,6 +73,23 @@ export interface ProductRef {
   environment: Environment;
 }
 
+export type TareKind = 'CANASTILLA' | 'ESTIBA' | 'OTRO';
+
+export interface TareType {
+  id: string;
+  kind: TareKind;
+  name: string;
+  weightKg: string;
+  isActive: boolean;
+}
+
+export interface LineTare {
+  id: string;
+  tareTypeId: string;
+  qty: number;
+  tareType: { id: string; kind: TareKind; name: string; weightKg: string };
+}
+
 export interface ReceiptLine {
   id: string;
   receiptId: string;
@@ -88,7 +105,14 @@ export interface ReceiptLine {
   units?: number | null;
   notes?: string | null;
   product: ProductRef;
+  tares?: LineTare[];
 }
+
+export const TARE_KIND_LABELS: Record<TareKind, string> = {
+  CANASTILLA: 'Canastilla',
+  ESTIBA: 'Estiba',
+  OTRO: 'Otro',
+};
 
 export interface Pallet {
   id: string;

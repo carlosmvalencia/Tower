@@ -157,9 +157,44 @@ model Product {
 // ============================================================
 
 model Setting {
-  key       String   @id // ej. tare.canastillaKg, tare.estibaKg
+  key       String   @id // ej. capacity.dry, tare.canastillaKg (legacy)
   value     String
   updatedAt DateTime @updatedAt
+}
+
+// Catálogo de taras: cada tipo de canastilla/estiba con su peso real.
+enum TareKind {
+  CANASTILLA
+  ESTIBA
+  OTRO
+}
+
+model TareType {
+  id       String   @id @default(cuid())
+  kind     TareKind
+  name     String // ej. "Canastilla grande", "Estiba de madera"
+  weightKg Decimal  @db.Decimal(8, 2)
+  isActive Boolean  @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  lineTares ReceiptLineTare[]
+
+  @@unique([kind, name])
+}
+
+// Taras usadas en una pesada: N unidades de cada tipo.
+model ReceiptLineTare {
+  id         String @id @default(cuid())
+  lineId     String
+  tareTypeId String
+  qty        Int
+
+  line     ReceiptLine @relation(fields: [lineId], references: [id], onDelete: Cascade)
+  tareType TareType    @relation(fields: [tareTypeId], references: [id])
+
+  @@index([lineId])
 }
 
 // ============================================================
@@ -246,8 +281,8 @@ model ReceiptLine {
 
   // Productos por KG:
   grossKg     Decimal? @db.Decimal(10, 2) // bruto (con canastillas y estiba)
-  canastillas Int      @default(0)
-  estibas     Int      @default(0)
+  canastillas Int      @default(0) // legacy — las taras nuevas van en tares[]
+  estibas     Int      @default(0) // legacy
   tareKg      Decimal? @db.Decimal(10, 2) // propuesta automática, editable
   netKg       Decimal? @db.Decimal(10, 2)
 
@@ -262,6 +297,7 @@ model ReceiptLine {
   product Product @relation(fields: [productId], references: [id])
   lot     Lot?    @relation(fields: [lotId], references: [id])
 
+  tares    ReceiptLineTare[]
   movement StockMovement?
 
   @@index([receiptId])

@@ -14,6 +14,11 @@ const productSelect = {
   select: { id: true, code: true, name: true, measure: true, unit: true, environment: true },
 };
 
+const lineInclude = {
+  product: productSelect,
+  tares: { include: { tareType: { select: { id: true, kind: true, name: true, weightKg: true } } } },
+};
+
 const receiptInclude = {
   customer: customerSelect,
   pallets: {
@@ -21,11 +26,11 @@ const receiptInclude = {
     include: {
       lines: {
         orderBy: { createdAt: 'asc' as const },
-        include: { product: productSelect },
+        include: lineInclude,
       },
     },
   },
-  lines: { where: { palletId: null }, include: { product: productSelect } },
+  lines: { where: { palletId: null }, include: lineInclude },
   photos: { orderBy: { createdAt: 'asc' as const } },
 };
 
@@ -157,14 +162,34 @@ export class ReceiptsService {
     }
 
     let data: Prisma.ReceiptLineUncheckedCreateInput;
+    let tareItems: { tareTypeId: string; qty: number }[] = [];
     if (product.measure === MeasureType.KG) {
       if (dto.grossKg == null) {
         throw new BadRequestException(`${product.name} se maneja por KG — falta el peso bruto`);
       }
       const canastillas = dto.canastillas ?? 0;
       const estibas = dto.estibas ?? 0;
-      const tareKg =
-        dto.tareKg != null ? dto.tareKg : (await this.suggestTare(canastillas, estibas)).tareKg;
+
+      // Tara: catálogo de tipos (nuevo) > legacy canastillas/estibas estándar
+      let autoTare: number;
+      if (dto.tares && dto.tares.length > 0) {
+        const types = await this.prisma.tareType.findMany({
+          where: { id: { in: dto.tares.map((t) => t.tareTypeId) } },
+        });
+        const typeById = new Map(types.map((t) => [t.id, t]));
+        autoTare = 0;
+        for (const item of dto.tares) {
+          const type = typeById.get(item.tareTypeId);
+          if (!type) throw new BadRequestException('Tipo de tara no encontrado');
+          autoTare += item.qty * Number(type.weightKg);
+        }
+        autoTare = round2(autoTare);
+        tareItems = dto.tares;
+      } else {
+        autoTare = (await this.suggestTare(canastillas, estibas)).tareKg;
+      }
+
+      const tareKg = dto.tareKg != null ? dto.tareKg : autoTare;
       const netKg = dto.netKg != null ? dto.netKg : round2(dto.grossKg - tareKg);
       if (netKg <= 0) {
         throw new BadRequestException('El peso neto debe ser mayor a 0 — revisa bruto y taras');
@@ -198,8 +223,11 @@ export class ReceiptsService {
     }
 
     return this.prisma.receiptLine.create({
-      data,
-      include: { product: productSelect },
+      data: {
+        ...data,
+        ...(tareItems.length > 0 ? { tares: { create: tareItems } } : {}),
+      },
+      include: lineInclude,
     });
   }
 

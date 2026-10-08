@@ -1,5 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 import {
+  IsArray,
   IsDateString,
   IsInt,
   IsNumber,
@@ -7,7 +9,19 @@ import {
   IsString,
   Min,
   MinLength,
+  ValidateNested,
 } from 'class-validator';
+
+export class LineTareDto {
+  @ApiProperty()
+  @IsString()
+  tareTypeId!: string;
+
+  @ApiProperty()
+  @IsInt()
+  @Min(1)
+  qty!: number;
+}
 
 export class AddLineDto {
   @ApiProperty()
@@ -31,7 +45,14 @@ export class AddLineDto {
   @Min(0)
   grossKg?: number;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ type: [LineTareDto], description: 'Taras usadas: N unidades de cada tipo' })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => LineTareDto)
+  tares?: LineTareDto[];
+
+  @ApiPropertyOptional({ deprecated: true })
   @IsOptional()
   @IsInt()
   @Min(0)

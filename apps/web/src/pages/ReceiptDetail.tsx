@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useForm, useWatch } from 'react-hook-form';
-import { ArrowLeft, Plus, Printer, ScanBarcode, Trash2 } from 'lucide-react';
+import { useFieldArray, useForm, useWatch } from 'react-hook-form';
+import { ArrowLeft, Plus, Printer, ScanBarcode, Trash2, X } from 'lucide-react';
 import { api } from '../lib/api';
 import {
   ENVIRONMENT_LABELS,
@@ -13,6 +13,7 @@ import {
   type Product,
   type Receipt,
   type ReceiptLine,
+  type TareType,
 } from '../lib/types';
 import { Modal } from '../components/Modal';
 import { EnvironmentBadge } from '../components/EnvironmentBadge';
@@ -26,8 +27,7 @@ interface LineFormValues {
   lotCode: string;
   expiryDate: string;
   grossKg: string;
-  canastillas: string;
-  estibas: string;
+  tareRows: { tareTypeId: string; qty: string }[];
   tareKg: string; // vacío = automática
   netKg: string; // vacío = automática
   units: string;
@@ -38,8 +38,7 @@ const emptyLine: LineFormValues = {
   lotCode: '',
   expiryDate: '',
   grossKg: '',
-  canastillas: '0',
-  estibas: '1',
+  tareRows: [],
   tareKg: '',
   netKg: '',
   units: '',
@@ -62,10 +61,11 @@ export function ReceiptDetailPage() {
     queryFn: async () => (await api.get<Receipt>(`/receipts/${id}`)).data,
   });
 
-  const { data: settings } = useQuery({
-    queryKey: ['settings'],
-    queryFn: async () => (await api.get<Record<string, string>>('/settings')).data,
+  const { data: tareTypes } = useQuery({
+    queryKey: ['tare-types'],
+    queryFn: async () => (await api.get<TareType[]>('/settings/tare-types')).data,
   });
+  const activeTareTypes = tareTypes?.filter((t) => t.isActive) ?? [];
 
   const { data: products } = useQuery({
     queryKey: ['products', 'all', receipt?.customerId],
@@ -120,8 +120,9 @@ export function ReceiptDetailPage() {
       };
       if (product?.measure === 'KG') {
         payload.grossKg = Number(values.grossKg);
-        payload.canastillas = Number(values.canastillas) || 0;
-        payload.estibas = Number(values.estibas) || 0;
+        payload.tares = values.tareRows
+          .filter((t) => t.tareTypeId && Number(t.qty) > 0)
+          .map((t) => ({ tareTypeId: t.tareTypeId, qty: Number(t.qty) }));
         if (values.tareKg !== '') payload.tareKg = Number(values.tareKg);
         if (values.netKg !== '') payload.netKg = Number(values.netKg);
       } else {
@@ -132,7 +133,7 @@ export function ReceiptDetailPage() {
     onSuccess: () => {
       refresh();
       // deja el modal abierto con lote/producto limpios para la siguiente pesada rápida
-      reset({ ...emptyLine, estibas: '0' });
+      reset({ ...emptyLine });
       setFormError(null);
     },
     onError: (e) => onError(e, setFormError),
@@ -141,6 +142,7 @@ export function ReceiptDetailPage() {
   // ---------- Formulario de pesada ----------
   const { register, handleSubmit, reset, setValue, control, formState: { errors } } =
     useForm<LineFormValues>({ defaultValues: emptyLine });
+  const tareRows = useFieldArray({ control, name: 'tareRows' });
   const watched = useWatch({ control });
 
   const selectedProduct = useMemo(
@@ -148,16 +150,21 @@ export function ReceiptDetailPage() {
     [products, watched.productId],
   );
 
-  const canastillaKg = Number(settings?.['tare.canastillaKg'] ?? 0);
-  const estibaKg = Number(settings?.['tare.estibaKg'] ?? 0);
-  const autoTare =
-    (Number(watched.canastillas) || 0) * canastillaKg + (Number(watched.estibas) || 0) * estibaKg;
+  const autoTare = (watched.tareRows ?? []).reduce((sum, row) => {
+    const type = tareTypes?.find((t) => t.id === row?.tareTypeId);
+    return sum + (type ? (Number(row?.qty) || 0) * Number(type.weightKg) : 0);
+  }, 0);
   const effectiveTare = watched.tareKg !== '' ? Number(watched.tareKg) : autoTare;
   const autoNet = (Number(watched.grossKg) || 0) - effectiveTare;
   const effectiveNet = watched.netKg !== '' ? Number(watched.netKg) : autoNet;
 
+  const defaultTareRow = () => {
+    const estiba = activeTareTypes.find((t) => t.kind === 'ESTIBA');
+    return { tareTypeId: estiba?.id ?? activeTareTypes[0]?.id ?? '', qty: '1' };
+  };
+
   const openLineModal = (pallet: Pallet) => {
-    reset({ ...emptyLine, estibas: pallet.lines.length === 0 ? '1' : '0' });
+    reset({ ...emptyLine, tareRows: pallet.lines.length === 0 ? [defaultTareRow()] : [] });
     setFormError(null);
     setLineModal({ pallet });
   };
@@ -311,8 +318,14 @@ export function ReceiptDetailPage() {
                       <div className="text-xs text-slate-600 mt-0.5">
                         {line.product.measure === 'KG' ? (
                           <>
-                            Bruto {fmtKg(line.grossKg)} · {line.canastillas} canastilla(s) +{' '}
-                            {line.estibas} estiba(s) = tara {fmtKg(line.tareKg)} ·{' '}
+                            Bruto {fmtKg(line.grossKg)} · tara {fmtKg(line.tareKg)}
+                            {line.tares && line.tares.length > 0 && (
+                              <> ({line.tares.map((t) => `${t.qty}× ${t.tareType.name}`).join(' + ')})</>
+                            )}
+                            {(!line.tares || line.tares.length === 0) && (line.canastillas > 0 || line.estibas > 0) && (
+                              <> ({line.canastillas} canastilla(s) + {line.estibas} estiba(s))</>
+                            )}
+                            {' · '}
                             <strong>Neto {fmtKg(line.netKg)}</strong>
                           </>
                         ) : (
@@ -388,29 +401,66 @@ export function ReceiptDetailPage() {
 
           {selectedProduct?.measure === 'KG' ? (
             <>
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className="label">Peso bruto (kg) *</label>
-                  <input
-                    className="input"
-                    type="number"
-                    step="0.01"
-                    inputMode="decimal"
-                    {...register('grossKg', { required: 'Requerido' })}
-                  />
+              <div>
+                <label className="label">Peso bruto (kg) *</label>
+                <input
+                  className="input"
+                  type="number"
+                  step="0.01"
+                  inputMode="decimal"
+                  {...register('grossKg', { required: 'Requerido' })}
+                />
+              </div>
+
+              {/* Taras por tipo: cada canastilla/estiba con su peso real */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="label mb-0">Taras usadas</label>
+                  <button
+                    type="button"
+                    className="btn-secondary text-xs"
+                    onClick={() => tareRows.append(defaultTareRow())}
+                  >
+                    <Plus size={13} className="mr-1" /> Agregar tara
+                  </button>
                 </div>
-                <div>
-                  <label className="label">Canastillas</label>
-                  <input className="input" type="number" min={0} inputMode="numeric" {...register('canastillas')} />
-                </div>
-                <div>
-                  <label className="label">Estibas</label>
-                  <input className="input" type="number" min={0} inputMode="numeric" {...register('estibas')} />
+                {tareRows.fields.length === 0 && (
+                  <p className="text-xs text-slate-400">Sin taras — el neto será igual al bruto (o digita la tara manual abajo)</p>
+                )}
+                <div className="space-y-2">
+                  {tareRows.fields.map((field, i) => (
+                    <div key={field.id} className="flex gap-2 items-center">
+                      <select className="input flex-1" {...register(`tareRows.${i}.tareTypeId` as const)}>
+                        {activeTareTypes.map((t) => (
+                          <option key={t.id} value={t.id}>
+                            {t.name} ({Number(t.weightKg)} kg)
+                          </option>
+                        ))}
+                      </select>
+                      <input
+                        className="input w-20"
+                        type="number"
+                        min={1}
+                        inputMode="numeric"
+                        placeholder="Cant."
+                        {...register(`tareRows.${i}.qty` as const)}
+                      />
+                      <button
+                        type="button"
+                        className="text-slate-400 hover:text-red-600 p-1"
+                        onClick={() => tareRows.remove(i)}
+                        aria-label="Quitar tara"
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+                  ))}
                 </div>
               </div>
+
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="label">Tara (kg)</label>
+                  <label className="label">Tara total (kg)</label>
                   <input
                     className="input"
                     type="number"
@@ -420,7 +470,7 @@ export function ReceiptDetailPage() {
                     {...register('tareKg')}
                   />
                   <p className="text-[11px] text-slate-400 mt-1">
-                    {canastillaKg} kg/canastilla · {estibaKg} kg/estiba
+                    Digítala solo si la tara real difiere de la suma de tipos
                   </p>
                 </div>
                 <div>
