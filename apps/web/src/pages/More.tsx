@@ -8,6 +8,7 @@ import {
   Settings,
   SlidersHorizontal,
   Users as UsersIcon,
+  Warehouse,
 } from 'lucide-react';
 import { useAuthStore } from '../lib/auth-store';
 import { PageHeader } from '../components/PageHeader';
@@ -17,6 +18,7 @@ export function MorePage() {
   const user = useAuthStore((s) => s.user);
 
   const items = [
+    { to: '/storage', label: 'Almacenaje', icon: Warehouse },
     { to: '/inventory', label: 'Inventario', icon: Boxes },
     { to: '/adjustments', label: 'Ajustes (AJ)', icon: SlidersHorizontal },
     { to: '/customers', label: 'Clientes', icon: Building2 },

@@ -87,6 +87,9 @@ model Customer {
   crossDockReceipts CrossDockReceipt[]
   sites             CustomerSite[]
   dispatches        Dispatch[]
+  storageRates      StorageRate[]
+  storageExtraRates StorageExtraRate[]
+  storageDays       StorageDay[]
 }
 
 // Sede del cliente: destino de las salidas de mercancía.
@@ -385,6 +388,87 @@ model Adjustment {
 
   @@index([productId])
   @@index([createdAt])
+}
+
+// ============================================================
+// Almacenaje: control diario de posiciones y kg por cliente,
+// con tarifario por contrato. Reemplaza las planillas de
+// "Control Almacenaje" / "Movimiento Global".
+// ============================================================
+
+// Unidad de cobro del almacenaje de un cliente en un ambiente.
+enum StorageChargeUnit {
+  POSITION_DAY // $/posición/día (la mayoría de clientes)
+  KG_DAY // $/kg/día (ej. Gran Colombia; Del Alba en refrigerado)
+}
+
+// Tarifa de almacenaje por cliente+ambiente, con vigencia (histórico de precios).
+model StorageRate {
+  id          String            @id @default(cuid())
+  customerId  String
+  environment Environment
+  unit        StorageChargeUnit
+  ratePerDay  Decimal           @db.Decimal(12, 2)
+  validFrom   DateTime
+  createdAt   DateTime          @default(now())
+
+  customer Customer @relation(fields: [customerId], references: [id])
+
+  @@index([customerId, environment, validFrom])
+}
+
+// Conceptos adicionales: cargue/descargue, nivelación de temperatura, otros.
+enum StorageExtraKind {
+  CARGUE_DESCARGUE
+  NIVELACION
+  OTRO
+}
+
+model StorageExtraRate {
+  id         String           @id @default(cuid())
+  customerId String
+  kind       StorageExtraKind
+  name       String? // para OTRO
+  ratePerKg  Decimal          @db.Decimal(12, 2)
+  validFrom  DateTime
+  createdAt  DateTime         @default(now())
+
+  customer Customer @relation(fields: [customerId], references: [id])
+
+  @@index([customerId, kind, validFrom])
+}
+
+// Registro diario MANUAL por cliente+ambiente. Los saldos (posiciones y kg)
+// se calculan acumulando estos registros — nunca se digitan.
+model StorageDay {
+  id          String      @id @default(cuid())
+  date        DateTime // día (00:00 UTC)
+  customerId  String
+  environment Environment
+
+  posIn  Int @default(0)
+  posOut Int @default(0)
+
+  kgIn  Decimal @default(0) @db.Decimal(12, 2)
+  kgOut Decimal @default(0) @db.Decimal(12, 2)
+
+  // Cargue/descargue: por defecto kgIn+kgOut; este campo lo sobreescribe.
+  kgHandledOverride Decimal? @db.Decimal(12, 2)
+  // Nivelación de temperatura (solo congelado, cuando llega fuera de rango).
+  kgLeveled Decimal @default(0) @db.Decimal(12, 2)
+
+  note       String?
+  invoiceRef String? // No. de factura cuando el día ya se facturó
+
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  customer Customer @relation(fields: [customerId], references: [id])
+
+  @@unique([date, customerId, environment])
+  @@index([customerId, date])
+  @@index([date])
 }
 
 // ============================================================

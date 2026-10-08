@@ -15,6 +15,7 @@ import { StockModule } from './stock/stock.module';
 import { DispatchesModule } from './dispatches/dispatches.module';
 import { AdjustmentsModule } from './adjustments/adjustments.module';
 import { ImportModule } from './import/import.module';
+import { StorageControlModule } from './storage-control/storage-control.module';
 import { HealthController } from './health.controller';
 
 const staticModules =
@@ -45,6 +46,7 @@ const staticModules =
     DispatchesModule,
     AdjustmentsModule,
     ImportModule,
+    StorageControlModule,
   ],
   controllers: [HealthController],
 })

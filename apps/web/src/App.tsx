@@ -15,6 +15,10 @@ import { InventoryPage } from './pages/Inventory';
 import { AdjustmentsPage } from './pages/Adjustments';
 import { SettingsPage } from './pages/Settings';
 import { ImportPage } from './pages/Import';
+import { StorageDailyPage } from './pages/StorageDaily';
+import { StorageOccupancyPage } from './pages/StorageOccupancy';
+import { StorageMonthlyPage } from './pages/StorageMonthly';
+import { StorageRatesPage } from './pages/StorageRates';
 import { MorePage } from './pages/More';
 import { ProtectedLayout } from './components/ProtectedLayout';
 import { useAuthStore } from './lib/auth-store';
@@ -53,6 +57,10 @@ export default function App() {
         <Route path="/dispatches/:id" element={<DispatchDetailPage />} />
         <Route path="/inventory" element={<InventoryPage />} />
         <Route path="/adjustments" element={<AdjustmentsPage />} />
+        <Route path="/storage" element={<StorageDailyPage />} />
+        <Route path="/storage/occupancy" element={<StorageOccupancyPage />} />
+        <Route path="/storage/monthly" element={<StorageMonthlyPage />} />
+        <Route path="/storage/rates" element={<StorageRatesPage />} />
         <Route path="/customers" element={<CustomersPage />} />
         <Route path="/products" element={<ProductsPage />} />
         <Route path="/settings" element={<SettingsPage />} />

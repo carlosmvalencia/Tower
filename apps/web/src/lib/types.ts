@@ -237,6 +237,89 @@ export interface StockRow {
   lots: LotAvailability[];
 }
 
+// ---------- Almacenaje ----------
+
+export type StorageChargeUnit = 'POSITION_DAY' | 'KG_DAY';
+export type StorageExtraKind = 'CARGUE_DESCARGUE' | 'NIVELACION' | 'OTRO';
+
+export interface StorageRate {
+  id: string;
+  customerId: string;
+  environment: Environment;
+  unit: StorageChargeUnit;
+  ratePerDay: string;
+  validFrom: string;
+}
+
+export interface StorageExtraRate {
+  id: string;
+  customerId: string;
+  kind: StorageExtraKind;
+  name?: string | null;
+  ratePerKg: string;
+  validFrom: string;
+}
+
+export interface StorageDayRecord {
+  id: string;
+  date: string;
+  customerId: string;
+  environment: Environment;
+  posIn: number;
+  posOut: number;
+  kgIn: string;
+  kgOut: string;
+  kgHandledOverride?: string | null;
+  kgLeveled: string;
+  note?: string | null;
+  invoiceRef?: string | null;
+}
+
+export interface StorageDayRow {
+  customerId: string;
+  customer: CustomerOption;
+  environment: Environment;
+  record: StorageDayRecord | null;
+  posBalance: number;
+  kgBalance: number;
+  unit: StorageChargeUnit | null;
+  rate: number | null;
+  storageValue: number;
+  kgHandled: number;
+  handlingRate: number | null;
+  handlingValue: number;
+  levelingRate: number | null;
+  levelingValue: number;
+  totalValue: number;
+}
+
+export interface OccupancyCell {
+  occupied: number;
+  capacity: number;
+  available: number;
+  pct: number | null;
+}
+
+export interface OccupancyDay {
+  date: string;
+  FROZEN: OccupancyCell;
+  REFRIGERATED: OccupancyCell;
+  DRY: OccupancyCell;
+}
+
+export interface MonthlyReport {
+  customer: CustomerOption;
+  month: string;
+  days: { date: string; rows: StorageDayRow[] }[];
+  totals: { storage: number; handling: number; leveling: number; total: number };
+}
+
+export const EXTRA_KIND_LABELS: Record<StorageExtraKind, string> = {
+  CARGUE_DESCARGUE: 'Cargue / descargue',
+  NIVELACION: 'Nivelación de temperatura',
+  OTRO: 'Otro',
+};
+
 export const DISPATCH_STATUS_LABELS: Record<DispatchStatus, string> = {
   DRAFT: 'En registro',
   CONFIRMED: 'Confirmada',

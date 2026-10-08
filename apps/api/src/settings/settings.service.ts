@@ -5,6 +5,10 @@ import { PrismaService } from '../prisma/prisma.service';
 export const DEFAULT_SETTINGS: Record<string, string> = {
   'tare.canastillaKg': '2',
   'tare.estibaKg': '25',
+  // Capacidad de cada bodega en posiciones (estibas)
+  'capacity.dry': '60',
+  'capacity.refrigerated': '182',
+  'capacity.frozen': '192',
 };
 
 @Injectable()

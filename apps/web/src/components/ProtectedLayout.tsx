@@ -12,6 +12,7 @@ import {
   Users as UsersIcon,
   Settings,
   FileUp,
+  Warehouse,
   LogOut,
   MoreHorizontal,
 } from 'lucide-react';
@@ -32,6 +33,7 @@ const navItems: NavItem[] = [
   { to: '/receipts', label: 'Entradas (EM)', icon: PackagePlus },
   { to: '/dispatches', label: 'Salidas (SM)', icon: PackageMinus },
   { to: '/crossdock', label: 'Cross-dock', icon: ArrowLeftRight },
+  { to: '/storage', label: 'Almacenaje', icon: Warehouse },
   { to: '/inventory', label: 'Inventario', icon: Boxes },
   { to: '/adjustments', label: 'Ajustes (AJ)', icon: SlidersHorizontal },
   { to: '/customers', label: 'Clientes', icon: Building2 },
