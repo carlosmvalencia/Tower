@@ -1,5 +1,6 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Put, Query, Res, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { Response } from 'express';
 import { UserRole } from '@prisma/client';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -59,13 +60,31 @@ export class StorageControlController {
 
   @Put('days')
   upsertDay(@Body() dto: UpsertDayDto, @CurrentUser() user: AuthenticatedUser) {
-    return this.storage.upsertDay(dto, user.id);
+    return this.storage.upsertDay(dto, user.id, user.role);
   }
 
   @Roles(UserRole.ADMIN, UserRole.SUPERVISOR)
   @Delete('days/:id')
-  removeDay(@Param('id') id: string) {
-    return this.storage.removeDay(id);
+  removeDay(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.storage.removeDay(id, user.role);
+  }
+
+  // ---- Cierre de mes ----
+  @Get('closures')
+  closures(@Query('year') year: string) {
+    return this.storage.listClosures(year);
+  }
+
+  @Roles(UserRole.ADMIN, UserRole.SUPERVISOR)
+  @Post('close-month')
+  closeMonth(@Body('month') month: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.storage.closeMonth(month, user.id);
+  }
+
+  @Roles(UserRole.ADMIN)
+  @Post('reopen-month')
+  reopenMonth(@Body('month') month: string) {
+    return this.storage.reopenMonth(month);
   }
 
   // ---- Paneles ----
@@ -77,6 +96,31 @@ export class StorageControlController {
   @Get('monthly')
   monthly(@Query('customerId') customerId: string, @Query('month') month: string) {
     return this.storage.monthly(customerId, month);
+  }
+
+  @Get('monthly/export')
+  async exportMonthly(
+    @Query('customerId') customerId: string,
+    @Query('month') month: string,
+    @Res() res: Response,
+  ) {
+    const { filename, buffer } = await this.storage.exportMonthly(customerId, month);
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(buffer);
+  }
+
+  @Get('billing')
+  billing(@Query('month') month: string) {
+    return this.storage.billingSummary(month);
+  }
+
+  @Get('billing/export')
+  async exportBilling(@Query('month') month: string, @Res() res: Response) {
+    const { filename, buffer } = await this.storage.exportBilling(month);
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(buffer);
   }
 
   @Roles(UserRole.ADMIN, UserRole.SUPERVISOR)

@@ -1,5 +1,6 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { Environment, Prisma, StorageChargeUnit, StorageExtraKind } from '@prisma/client';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { Environment, Prisma, StorageChargeUnit, StorageExtraKind, UserRole } from '@prisma/client';
+import * as XLSX from 'xlsx';
 import { PrismaService } from '../prisma/prisma.service';
 import { SettingsService } from '../settings/settings.service';
 import {
@@ -90,10 +91,52 @@ export class StorageControlService {
     return { ok: true };
   }
 
+  // ---------- Cierre de mes ----------
+
+  async listClosures(year: string) {
+    return this.prisma.storageMonthClosure.findMany({
+      where: { month: { startsWith: `${year}-` } },
+      orderBy: { month: 'asc' },
+    });
+  }
+
+  async isMonthClosed(month: string): Promise<boolean> {
+    const closure = await this.prisma.storageMonthClosure.findUnique({ where: { month } });
+    return !!closure;
+  }
+
+  async closeMonth(month: string, userId?: string) {
+    assertMonth(month);
+    await this.prisma.storageMonthClosure.upsert({
+      where: { month },
+      update: {},
+      create: { month, closedById: userId },
+    });
+    return { month, closed: true };
+  }
+
+  /** Reabrir un mes cerrado — solo ADMIN (lo exige el controller). */
+  async reopenMonth(month: string) {
+    assertMonth(month);
+    await this.prisma.storageMonthClosure.deleteMany({ where: { month } });
+    return { month, closed: false };
+  }
+
+  /** Un mes cerrado solo lo puede modificar un ADMIN. */
+  private async assertEditable(date: Date, role?: UserRole) {
+    const month = date.toISOString().slice(0, 7);
+    if (role !== UserRole.ADMIN && (await this.isMonthClosed(month))) {
+      throw new ForbiddenException(
+        `El mes ${month} está cerrado — solo un administrador puede modificarlo`,
+      );
+    }
+  }
+
   // ---------- Registro diario ----------
 
-  async upsertDay(dto: UpsertDayDto, userId?: string) {
+  async upsertDay(dto: UpsertDayDto, userId?: string, role?: UserRole) {
     const date = parseDay(dto.date);
+    await this.assertEditable(date, role);
     const data = {
       posIn: dto.posIn ?? 0,
       posOut: dto.posOut ?? 0,
@@ -123,10 +166,11 @@ export class StorageControlService {
     return this.dayGrid(dto.date);
   }
 
-  async removeDay(id: string) {
+  async removeDay(id: string, role?: UserRole) {
     const day = await this.prisma.storageDay.findUnique({ where: { id } });
     if (!day) throw new NotFoundException('Registro no encontrado');
     if (day.invoiceRef) throw new BadRequestException('El día ya está facturado — no se puede eliminar');
+    await this.assertEditable(day.date, role);
     await this.prisma.storageDay.delete({ where: { id } });
     return { ok: true };
   }
@@ -353,7 +397,155 @@ export class StorageControlService {
       days.push({ date: key, rows });
     }
     totals.total = round2(totals.storage + totals.handling + totals.leveling);
-    return { customer, month: monthStr, days, totals };
+    const closed = await this.isMonthClosed(monthStr);
+    const invoiceRefs = [...new Set(records.map((r) => r.invoiceRef).filter(Boolean))] as string[];
+    return { customer, month: monthStr, days, totals, closed, invoiceRefs };
+  }
+
+  // ---------- Pre-factura (todos los clientes del mes) ----------
+
+  async billingSummary(monthStr: string) {
+    assertMonth(monthStr);
+    const from = parseDay(`${monthStr}-01`);
+    const to = new Date(Date.UTC(from.getUTCFullYear(), from.getUTCMonth() + 1, 0));
+
+    // Clientes con actividad en el mes o con saldo arrastrado (registros previos) o tarifas.
+    const withDays = await this.prisma.storageDay.findMany({
+      where: { date: { lte: to } },
+      select: { customerId: true },
+      distinct: ['customerId'],
+    });
+    const withRates = await this.prisma.storageRate.findMany({
+      select: { customerId: true },
+      distinct: ['customerId'],
+    });
+    const customerIds = [...new Set([...withDays, ...withRates].map((x) => x.customerId))];
+
+    const rows = [];
+    for (const customerId of customerIds) {
+      const report = await this.monthly(customerId, monthStr);
+      if (report.totals.total === 0 && report.days.every((d) => d.rows.length === 0)) continue;
+      rows.push({
+        customer: report.customer,
+        totals: report.totals,
+        invoiceRefs: report.invoiceRefs,
+      });
+    }
+    rows.sort((a, b) => b.totals.total - a.totals.total);
+
+    const grand = rows.reduce(
+      (acc, r) => ({
+        storage: round2(acc.storage + r.totals.storage),
+        handling: round2(acc.handling + r.totals.handling),
+        leveling: round2(acc.leveling + r.totals.leveling),
+        total: round2(acc.total + r.totals.total),
+      }),
+      { storage: 0, handling: 0, leveling: 0, total: 0 },
+    );
+
+    return { month: monthStr, closed: await this.isMonthClosed(monthStr), rows, grand };
+  }
+
+  // ---------- Exports a Excel ----------
+
+  async exportMonthly(customerId: string, monthStr: string): Promise<{ filename: string; buffer: Buffer }> {
+    const report = await this.monthly(customerId, monthStr);
+    const wb = XLSX.utils.book_new();
+
+    const resumen = XLSX.utils.aoa_to_sheet([
+      ['ALL-LOGISTICS — CONTROL DE ALMACENAJE'],
+      [],
+      ['Cliente', report.customer.name],
+      ['Mes', report.month],
+      ['Estado', report.closed ? 'MES CERRADO' : 'Abierto'],
+      ['Factura(s)', report.invoiceRefs.join(', ') || '—'],
+      [],
+      ['Concepto', 'Valor'],
+      ['Almacenaje', report.totals.storage],
+      ['Cargue / descargue', report.totals.handling],
+      ['Nivelación de temperatura', report.totals.leveling],
+      ['TOTAL MES', report.totals.total],
+    ]);
+    resumen['!cols'] = [{ wch: 28 }, { wch: 20 }];
+    XLSX.utils.book_append_sheet(wb, resumen, 'Resumen');
+
+    const header = [
+      'Fecha',
+      'Bodega',
+      'Pos. entra',
+      'Pos. sale',
+      'Saldo pos.',
+      'Kg entra',
+      'Kg sale',
+      'Saldo kg',
+      'Unidad cobro',
+      'Tarifa',
+      'Almacenaje $',
+      'Kg manipulados',
+      'Cargue $',
+      'Kg nivelados',
+      'Nivelación $',
+      'Total día $',
+      'No. factura',
+    ];
+    const detail: (string | number)[][] = [header];
+    for (const day of report.days) {
+      for (const r of day.rows) {
+        const rec = r.record as { posIn?: number; posOut?: number; kgIn?: string; kgOut?: string; kgLeveled?: string; invoiceRef?: string } | null;
+        detail.push([
+          day.date,
+          ENV_ES[r.environment],
+          rec?.posIn ?? 0,
+          rec?.posOut ?? 0,
+          r.posBalance,
+          Number(rec?.kgIn ?? 0),
+          Number(rec?.kgOut ?? 0),
+          r.kgBalance,
+          r.unit === 'KG_DAY' ? '$/kg/día' : r.unit === 'POSITION_DAY' ? '$/posición/día' : '—',
+          r.rate ?? 0,
+          r.storageValue,
+          r.kgHandled,
+          r.handlingValue,
+          Number(rec?.kgLeveled ?? 0),
+          r.levelingValue,
+          r.totalValue,
+          rec?.invoiceRef ?? '',
+        ]);
+      }
+    }
+    const detalle = XLSX.utils.aoa_to_sheet(detail);
+    detalle['!cols'] = header.map((h) => ({ wch: Math.max(h.length + 2, 12) }));
+    XLSX.utils.book_append_sheet(wb, detalle, 'Detalle diario');
+
+    const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' }) as Buffer;
+    const safeName = report.customer.name.replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '-').toLowerCase();
+    return { filename: `almacenaje-${safeName}-${monthStr}.xlsx`, buffer };
+  }
+
+  async exportBilling(monthStr: string): Promise<{ filename: string; buffer: Buffer }> {
+    const summary = await this.billingSummary(monthStr);
+    const rows: (string | number)[][] = [
+      ['ALL-LOGISTICS — PRE-FACTURA DE ALMACENAJE', '', '', '', '', ''],
+      ['Mes', summary.month, summary.closed ? 'MES CERRADO' : 'Abierto', '', '', ''],
+      [],
+      ['Cliente', 'Almacenaje $', 'Cargue/descargue $', 'Nivelación $', 'TOTAL $', 'Factura(s)'],
+      ...summary.rows.map((r) => [
+        r.customer.name,
+        r.totals.storage,
+        r.totals.handling,
+        r.totals.leveling,
+        r.totals.total,
+        r.invoiceRefs.join(', '),
+      ]),
+      [],
+      ['TOTAL', summary.grand.storage, summary.grand.handling, summary.grand.leveling, summary.grand.total, ''],
+    ];
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols'] = [{ wch: 32 }, { wch: 16 }, { wch: 18 }, { wch: 14 }, { wch: 16 }, { wch: 20 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Pre-factura');
+    const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' }) as Buffer;
+    return { filename: `prefactura-almacenaje-${monthStr}.xlsx`, buffer };
   }
 
   /** Marca un rango de días del cliente con el número de factura. */
@@ -383,6 +575,16 @@ export class StorageControlService {
     });
     return rate ? num(rate.ratePerKg) : null;
   }
+}
+
+const ENV_ES: Record<Environment, string> = {
+  FROZEN: 'Congelado',
+  REFRIGERATED: 'Refrigerado',
+  DRY: 'Seco',
+};
+
+function assertMonth(s: string) {
+  if (!/^\d{4}-\d{2}$/.test(s)) throw new BadRequestException(`Mes inválido: ${s} (se espera AAAA-MM)`);
 }
 
 function parseDay(s: string): Date {

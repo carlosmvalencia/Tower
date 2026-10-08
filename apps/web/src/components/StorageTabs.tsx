@@ -4,9 +4,21 @@ import clsx from 'clsx';
 const tabs = [
   { to: '/storage', label: 'Registro diario', end: true },
   { to: '/storage/occupancy', label: 'Ocupación' },
-  { to: '/storage/monthly', label: 'Mensual / facturación' },
+  { to: '/storage/monthly', label: 'Mensual por cliente' },
+  { to: '/storage/billing', label: 'Pre-factura / cierre' },
   { to: '/storage/rates', label: 'Tarifas' },
 ];
+
+/** Descarga un endpoint que responde un archivo (XLSX) con el token de la sesión. */
+export async function downloadFile(apiGet: Promise<{ data: Blob }>, fallbackName: string) {
+  const res = await apiGet;
+  const url = URL.createObjectURL(res.data);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = fallbackName;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 export function StorageTabs() {
   return (

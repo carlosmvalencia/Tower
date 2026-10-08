@@ -438,6 +438,15 @@ model StorageExtraRate {
   @@index([customerId, kind, validFrom])
 }
 
+// Cierre contable de un mes de almacenaje: una vez cerrado, los registros
+// de ese mes solo los puede modificar un ADMIN.
+model StorageMonthClosure {
+  id         String   @id @default(cuid())
+  month      String   @unique // "AAAA-MM"
+  closedAt   DateTime @default(now())
+  closedById String?
+}
+
 // Registro diario MANUAL por cliente+ambiente. Los saldos (posiciones y kg)
 // se calculan acumulando estos registros — nunca se digitan.
 model StorageDay {

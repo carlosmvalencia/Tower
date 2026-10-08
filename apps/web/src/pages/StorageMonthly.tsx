@@ -1,5 +1,7 @@
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Download, Lock } from 'lucide-react';
 import { api } from '../lib/api';
 import {
   ENVIRONMENT_LABELS,
@@ -8,7 +10,7 @@ import {
 } from '../lib/types';
 import { useAuthStore } from '../lib/auth-store';
 import { PageHeader } from '../components/PageHeader';
-import { StorageTabs, fmtMoney } from '../components/StorageTabs';
+import { StorageTabs, downloadFile, fmtMoney } from '../components/StorageTabs';
 
 function currentMonth(): string {
   return new Date().toLocaleDateString('sv-SE').slice(0, 7);
@@ -18,8 +20,9 @@ export function StorageMonthlyPage() {
   const queryClient = useQueryClient();
   const user = useAuthStore((s) => s.user);
   const canInvoice = user?.role === 'ADMIN' || user?.role === 'SUPERVISOR';
-  const [customerId, setCustomerId] = useState('');
-  const [month, setMonth] = useState(currentMonth());
+  const [params] = useSearchParams();
+  const [customerId, setCustomerId] = useState(params.get('customerId') ?? '');
+  const [month, setMonth] = useState(params.get('month') ?? currentMonth());
   const [invoiceRef, setInvoiceRef] = useState('');
 
   const customers = useQuery({
@@ -65,6 +68,29 @@ export function StorageMonthlyPage() {
           ))}
         </select>
         <input type="month" className="input max-w-[180px]" value={month} onChange={(e) => setMonth(e.target.value)} />
+        {data && (
+          <>
+            {data.closed && (
+              <span className="badge-red inline-flex items-center gap-1">
+                <Lock size={12} /> Mes cerrado
+              </span>
+            )}
+            <button
+              className="btn-secondary text-sm"
+              onClick={() =>
+                downloadFile(
+                  api.get('/storage-control/monthly/export', {
+                    params: { customerId, month },
+                    responseType: 'blob',
+                  }),
+                  `almacenaje-${data.customer.name}-${month}.xlsx`,
+                )
+              }
+            >
+              <Download size={15} className="mr-1" /> Exportar Excel
+            </button>
+          </>
+        )}
       </div>
 
       {isLoading && <div className="text-slate-500 text-sm">Calculando…</div>}

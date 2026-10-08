@@ -18,6 +18,7 @@ import { ImportPage } from './pages/Import';
 import { StorageDailyPage } from './pages/StorageDaily';
 import { StorageOccupancyPage } from './pages/StorageOccupancy';
 import { StorageMonthlyPage } from './pages/StorageMonthly';
+import { StorageBillingPage } from './pages/StorageBilling';
 import { StorageRatesPage } from './pages/StorageRates';
 import { MorePage } from './pages/More';
 import { ProtectedLayout } from './components/ProtectedLayout';
@@ -60,6 +61,7 @@ export default function App() {
         <Route path="/storage" element={<StorageDailyPage />} />
         <Route path="/storage/occupancy" element={<StorageOccupancyPage />} />
         <Route path="/storage/monthly" element={<StorageMonthlyPage />} />
+        <Route path="/storage/billing" element={<StorageBillingPage />} />
         <Route path="/storage/rates" element={<StorageRatesPage />} />
         <Route path="/customers" element={<CustomersPage />} />
         <Route path="/products" element={<ProductsPage />} />

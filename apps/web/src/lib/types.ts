@@ -307,11 +307,33 @@ export interface OccupancyDay {
   DRY: OccupancyCell;
 }
 
+export interface StorageTotals {
+  storage: number;
+  handling: number;
+  leveling: number;
+  total: number;
+}
+
 export interface MonthlyReport {
   customer: CustomerOption;
   month: string;
   days: { date: string; rows: StorageDayRow[] }[];
-  totals: { storage: number; handling: number; leveling: number; total: number };
+  totals: StorageTotals;
+  closed: boolean;
+  invoiceRefs: string[];
+}
+
+export interface BillingSummary {
+  month: string;
+  closed: boolean;
+  rows: { customer: CustomerOption; totals: StorageTotals; invoiceRefs: string[] }[];
+  grand: StorageTotals;
+}
+
+export interface MonthClosure {
+  id: string;
+  month: string;
+  closedAt: string;
 }
 
 export const EXTRA_KIND_LABELS: Record<StorageExtraKind, string> = {

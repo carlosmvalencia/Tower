@@ -48,6 +48,13 @@ export function StorageDailyPage() {
       (await api.get<{ date: string; rows: StorageDayRow[] }>('/storage-control/days', { params: { date } })).data,
   });
 
+  const closures = useQuery({
+    queryKey: ['storage-closures', date.slice(0, 4)],
+    queryFn: async () =>
+      (await api.get<{ month: string }[]>('/storage-control/closures', { params: { year: date.slice(0, 4) } })).data,
+  });
+  const monthClosed = closures.data?.some((c) => c.month === date.slice(0, 7)) ?? false;
+
   const { register, handleSubmit, reset } = useForm<FormValues>();
 
   const save = useMutation({
@@ -100,6 +107,9 @@ export function StorageDailyPage() {
         <button className="btn-primary" onClick={() => openModal()}>
           <Plus size={16} className="mr-1" /> Registrar movimiento
         </button>
+        {monthClosed && (
+          <span className="badge-red">Mes cerrado — solo administradores pueden modificar</span>
+        )}
         <div className="ml-auto text-sm text-slate-600">
           Valor total del día: <strong>{fmtMoney(totalDay)}</strong>
         </div>
