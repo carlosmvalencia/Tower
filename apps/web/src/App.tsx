@@ -14,6 +14,7 @@ import { DispatchDetailPage } from './pages/DispatchDetail';
 import { InventoryPage } from './pages/Inventory';
 import { AdjustmentsPage } from './pages/Adjustments';
 import { SettingsPage } from './pages/Settings';
+import { ImportPage } from './pages/Import';
 import { MorePage } from './pages/More';
 import { ProtectedLayout } from './components/ProtectedLayout';
 import { useAuthStore } from './lib/auth-store';
@@ -55,6 +56,7 @@ export default function App() {
         <Route path="/customers" element={<CustomersPage />} />
         <Route path="/products" element={<ProductsPage />} />
         <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/import" element={<ImportPage />} />
         <Route path="/more" element={<MorePage />} />
         <Route
           path="/users"

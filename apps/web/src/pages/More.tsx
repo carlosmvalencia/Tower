@@ -3,6 +3,7 @@ import {
   Boxes,
   Building2,
   ChevronRight,
+  FileUp,
   Package,
   Settings,
   SlidersHorizontal,
@@ -20,6 +21,7 @@ export function MorePage() {
     { to: '/adjustments', label: 'Ajustes (AJ)', icon: SlidersHorizontal },
     { to: '/customers', label: 'Clientes', icon: Building2 },
     { to: '/products', label: 'Productos', icon: Package },
+    { to: '/import', label: 'Importación masiva', icon: FileUp },
     ...(user?.role === 'ADMIN' ? [{ to: '/users', label: 'Usuarios', icon: UsersIcon }] : []),
     { to: '/settings', label: 'Configuración', icon: Settings },
   ];

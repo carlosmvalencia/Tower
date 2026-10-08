@@ -14,6 +14,7 @@ import { CrossDockModule } from './crossdock/crossdock.module';
 import { StockModule } from './stock/stock.module';
 import { DispatchesModule } from './dispatches/dispatches.module';
 import { AdjustmentsModule } from './adjustments/adjustments.module';
+import { ImportModule } from './import/import.module';
 import { HealthController } from './health.controller';
 
 const staticModules =
@@ -43,6 +44,7 @@ const staticModules =
     StockModule,
     DispatchesModule,
     AdjustmentsModule,
+    ImportModule,
   ],
   controllers: [HealthController],
 })

@@ -11,6 +11,7 @@ import {
   ArrowLeftRight,
   Users as UsersIcon,
   Settings,
+  FileUp,
   LogOut,
   MoreHorizontal,
 } from 'lucide-react';
@@ -36,6 +37,7 @@ const navItems: NavItem[] = [
   { to: '/customers', label: 'Clientes', icon: Building2 },
   { to: '/products', label: 'Productos', icon: Package },
   { to: '/users', label: 'Usuarios', icon: UsersIcon, roles: ['ADMIN'] },
+  { to: '/import', label: 'Importación', icon: FileUp },
   { to: '/settings', label: 'Configuración', icon: Settings },
 ];
 
