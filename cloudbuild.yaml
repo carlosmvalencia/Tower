@@ -1,8 +1,10 @@
-# CI/CD de la API de Tower: push a main → build → push → deploy a Cloud Run.
-# Reusa el repositorio de Artifact Registry "sandor" (imagen tower-api).
+# CI/CD de Tower: push a main → despliega API (Cloud Run) y web (Firebase Hosting).
+# Las dos ramas corren en paralelo (waitFor).
 steps:
-  - id: build
+  # ========== API ==========
+  - id: api-build
     name: gcr.io/cloud-builders/docker
+    waitFor: ['-']
     args:
       - build
       - -f
@@ -15,15 +17,17 @@ steps:
 
   # CRÍTICO: push explícito ANTES del deploy. La sección images: del final
   # empuja después de todos los pasos — demasiado tarde para el deploy.
-  - id: push
+  - id: api-push
     name: gcr.io/cloud-builders/docker
+    waitFor: ['api-build']
     args:
       - push
       - --all-tags
       - us-east1-docker.pkg.dev/sandor-prod/sandor/tower-api
 
-  - id: deploy
+  - id: api-deploy
     name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    waitFor: ['api-push']
     entrypoint: gcloud
     args:
       - run
@@ -32,7 +36,37 @@ steps:
       - --image=us-east1-docker.pkg.dev/sandor-prod/sandor/tower-api:$BUILD_ID
       - --region=us-east1
 
+  # ========== Web ==========
+  - id: web-install
+    name: node:20
+    waitFor: ['-']
+    entrypoint: npm
+    args: ['ci', '--no-audit', '--no-fund']
+
+  - id: web-build
+    name: node:20
+    waitFor: ['web-install']
+    entrypoint: npm
+    args: ['run', 'build:web']
+
+  # firebase-tools usa las credenciales de la cuenta de servicio de Cloud Build
+  # (requiere roles/firebasehosting.admin sobre el proyecto).
+  - id: web-deploy
+    name: node:20
+    waitFor: ['web-build']
+    entrypoint: npx
+    args:
+      - firebase-tools
+      - deploy
+      - --only
+      - hosting
+      - --project
+      - sandor-prod
+      - --non-interactive
+      - --config
+      - apps/web/firebase.json
+
 options:
   machineType: E2_MEDIUM
   logging: CLOUD_LOGGING_ONLY
-timeout: 1200s
+timeout: 1500s

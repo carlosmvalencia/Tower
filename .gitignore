@@ -6,12 +6,15 @@ dist/
 build/
 out/
 
-# Entornos (incluye .env.production — nunca subir claves al repo)
+# Entornos (nunca subir claves al repo)
 .env
 .env.local
 .env.*.local
 .env.production
 !.env.example
+# Excepción: el .env.production del web solo contiene la URL pública de la
+# API (ningún secreto) y el CI lo necesita para construir el bundle.
+!apps/web/.env.production
 
 # Logs
 *.log
